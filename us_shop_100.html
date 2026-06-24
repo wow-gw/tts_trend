@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TikTok Shop · Top 100 Brand Ranking Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:#ffffff; --bg2:#f5f4f0; --bg3:#eeecea;
+    --text:#3d3d3a; --texts:#73726c; --textt:#9e9d97;
+    --border:rgba(0,0,0,0.10); --border2:rgba(0,0,0,0.18);
+    --up:#1D9E75; --dn:#D85A30; --accent:#378ADD;
+    --radius:8px; --radius-lg:12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#1e1e1c; --bg2:#2c2c2a; --bg3:#3a3a38;
+      --text:#c2c0b6; --texts:#88877f; --textt:#5f5e5a;
+      --border:rgba(255,255,255,0.09); --border2:rgba(255,255,255,0.18);
+    }
+  }
+  body {
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;
+    background:var(--bg); color:var(--text); padding:2rem 2.5rem; min-height:100vh;
+  }
+  h1 { font-size:18px; font-weight:600; color:var(--text); margin-bottom:4px; }
+  .subtitle { font-size:12px; color:var(--texts); margin-bottom:1.75rem; }
+
+  /* 섹션 레이블 + ? */
+  .sec-row { display:flex; align-items:center; gap:6px; margin-bottom:.65rem; }
+  .sec-label { font-size:10.5px; font-weight:600; letter-spacing:.07em; text-transform:uppercase; color:var(--texts); }
+
+  /* ? 툴팁 */
+  .info-icon {
+    display:inline-flex; align-items:center; justify-content:center;
+    width:15px; height:15px; border-radius:50%;
+    background:var(--bg3); border:1px solid var(--border2);
+    font-size:9px; color:var(--texts); cursor:default;
+    position:relative; flex-shrink:0; transition:background .15s;
+  }
+  .info-icon:hover { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .info-icon .info-tip {
+    display:none; position:absolute; left:22px; top:50%; transform:translateY(-50%);
+    background:var(--text); color:var(--bg); border-radius:8px; padding:10px 13px;
+    font-size:11px; font-weight:400; line-height:1.65; z-index:100;
+    box-shadow:0 4px 16px rgba(0,0,0,.18); min-width:240px; max-width:320px;
+    white-space:normal; letter-spacing:0; text-transform:none;
+  }
+  .info-icon .info-tip::before {
+    content:''; position:absolute; left:-5px; top:50%; transform:translateY(-50%);
+    border:5px solid transparent; border-right-color:var(--text); border-left:0;
+  }
+  .info-icon:hover .info-tip { display:block; }
+
+  /* 메트릭 카드 */
+  .mrow { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:8px; margin-bottom:1.5rem; }
+  .mc { background:var(--bg2); border-radius:var(--radius); padding:.7rem .9rem; cursor:pointer; border:1.5px solid transparent; transition:border-color .15s,background .15s; }
+  .mc:hover { background:var(--bg3); }
+  .mc.active { border-color:var(--accent); background:var(--bg); }
+  .mc-lbl { font-size:10px; color:var(--texts); margin-bottom:3px; }
+  .mc-val { font-size:16px; font-weight:600; color:var(--text); line-height:1.15; }
+  .mc-chg { font-size:10px; margin-top:3px; }
+  .up { color:var(--up); } .dn { color:var(--dn); }
+
+  /* GMV */
+  .gmv-wrap { margin-bottom:1.75rem; background:var(--bg2); border-radius:var(--radius-lg); padding:1rem 1.25rem; }
+  #gmvC-wrap { position:relative; width:100%; height:150px; margin-top:.5rem; }
+
+  /* 컨트롤 */
+  .ctrl { display:flex; align-items:center; gap:8px; margin-bottom:.6rem; flex-wrap:wrap; }
+  .btn { font-size:12px; padding:5px 16px; border-radius:20px; border:1px solid var(--border2); background:transparent; cursor:pointer; color:var(--texts); transition:background .15s,color .15s; line-height:1.6; }
+  .btn:hover { background:var(--bg3); }
+  .btn.primary { background:var(--text); color:var(--bg); border-color:var(--text); }
+  .btn.playing { background:var(--up); color:#fff; border-color:var(--up); }
+  .spd { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--texts); }
+  .spd select { font-size:11px; border:1px solid var(--border2); border-radius:6px; padding:3px 7px; background:var(--bg); color:var(--text); cursor:pointer; }
+
+  /* 사용법 가이드 */
+  .usage-guide { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:.9rem; padding:10px 14px; background:var(--bg2); border-radius:var(--radius); border-left:3px solid var(--accent); }
+  .usage-item { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--texts); }
+  .usage-sep { color:var(--border2); font-size:14px; }
+
+  /* 검색 */
+  .search-wrap { display:flex; align-items:center; gap:8px; margin-bottom:.9rem; }
+  .search-wrap input { font-size:12px; padding:5px 14px; border-radius:20px; border:1px solid var(--border2); background:var(--bg); color:var(--text); width:240px; outline:none; transition:border-color .15s; }
+  .search-wrap input:focus { border-color:var(--accent); }
+  .search-wrap input::placeholder { color:var(--textt); }
+
+  /* 범프 */
+  .bump-wrap { position:relative; width:100%; }
+  canvas#bc { display:block; width:100%; }
+
+  /* 툴팁 */
+  .tt {
+    position:absolute; background:var(--bg); border:1px solid var(--border2);
+    border-radius:10px; padding:10px 14px; font-size:11px; pointer-events:none;
+    opacity:0; transition:opacity .1s; z-index:30; min-width:220px;
+    box-shadow:0 4px 20px rgba(0,0,0,.12);
+  }
+  .tt-name { font-weight:600; font-size:12.5px; margin-bottom:8px; }
+  .tt-row { display:flex; justify-content:space-between; gap:12px; margin:2px 0; color:var(--texts); }
+  .tt-v { color:var(--text); font-weight:600; }
+  .tt-divider { border:none; border-top:1px solid var(--border); margin:6px 0; }
+  /* 매출 비중 바 */
+  .rev-bar-wrap { margin-top:7px; }
+  .rev-bar-label { display:flex; justify-content:space-between; font-size:10px; color:var(--textt); margin-bottom:3px; }
+  .rev-bar-track { width:100%; height:7px; background:var(--bg3); border-radius:4px; overflow:hidden; display:flex; }
+  .rev-bar-seg { height:100%; transition:width .2s; }
+
+  /* 레전드 */
+  .leg-header { display:flex; align-items:center; justify-content:space-between; margin-top:1rem; margin-bottom:.4rem; }
+  .leg-wrap { display:flex; flex-wrap:wrap; gap:4px; padding:1rem 1.25rem; background:var(--bg2); border-radius:var(--radius-lg); }
+  .leg-item { display:flex; align-items:center; gap:5px; font-size:10.5px; color:var(--texts); cursor:pointer; padding:3px 8px; border-radius:20px; border:1px solid transparent; transition:background .12s,opacity .12s; user-select:none; line-height:1.5; }
+  .leg-item:hover { background:var(--bg3); }
+  .leg-item.off { opacity:.22; }
+  .leg-item.hl  { border-color:var(--accent); background:var(--bg); }
+  .leg-d { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+
+  /* 데이터 출처 */
+  .source-badge {
+    display:inline-flex; align-items:center; gap:6px;
+    background:var(--bg2); border:1px solid var(--border2);
+    border-radius:20px; padding:4px 12px;
+    font-size:10.5px; color:var(--texts);
+    margin-bottom:1.75rem;
+  }
+  .source-badge .dot { width:7px; height:7px; border-radius:50%; background:#ff4d4f; flex-shrink:0; }
+
+  /* footer */
+  .footer-note { margin-top:1.5rem; padding:12px 16px; background:var(--bg2); border-radius:var(--radius); font-size:10.5px; color:var(--textt); line-height:1.8; }
+  .footer-note strong { color:var(--texts); }
+
+  @media (max-width:680px) {
+    body { padding:1rem; }
+    .mrow { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  }
+</style>
+</head>
+<body>
+
+<h1>TikTok Shop · Top 100 Brand Ranking Dashboard</h1>
+<p class="subtitle">Top 100 브랜드 월별 매출 순위 변동을 한눈에 확인하세요 · Sep 25 – May 26</p>
+
+<!-- 데이터 출처 배지 -->
+<div class="source-badge">
+  <span class="dot"></span>
+  <span>데이터 출처 · Source :</span>
+  <strong style="color:var(--text)">Kalodata &gt; Shop &gt; Category : Skincare</strong>
+</div>
+
+<!-- 메트릭 카드 -->
+<div class="sec-row">
+  <span class="sec-label">월별 카테고리 Revenue</span>
+  <span class="info-icon">?
+    <span class="info-tip">
+      <strong>📊 월별 카테고리 Revenue 합산</strong><br>
+      해당 월 Top 100 스토어의 Revenue($) 총합입니다.<br>
+      <em>Sum of Revenue($) for Top 100 stores in the month.</em><br><br>
+      <strong>카드 클릭</strong> → 해당 월로 차트 이동<br>
+      <em>Click a card to jump to that month on the chart.</em><br><br>
+      ▲ 초록: 전월 대비 증가 · ▼ 빨강: 전월 대비 감소<br>
+      <em>▲ Green = MoM increase · ▼ Red = MoM decrease</em>
+    </span>
+  </span>
+</div>
+<div class="mrow" id="mrow"></div>
+
+<!-- GMV 바 차트 -->
+<div class="gmv-wrap">
+  <div class="sec-row">
+    <span class="sec-label">Revenue 볼륨 추이</span>
+    <span class="info-icon">?
+      <span class="info-tip">
+        <strong>📈 Revenue 월별 추이</strong><br>
+        각 막대 = 해당 월 Top 100 스토어 총 매출 합산<br>
+        <em>Each bar = total revenue of Top 100 stores that month.</em><br><br>
+        막대에 마우스를 올리면 정확한 금액이 표시됩니다.<br>
+        <em>Hover over a bar to see the exact revenue.</em>
+      </span>
+    </span>
+  </div>
+  <div id="gmvC-wrap"><canvas id="gmvC"></canvas></div>
+</div>
+
+<!-- 범프 차트 -->
+<div class="sec-row" style="margin-top:1.5rem">
+  <span class="sec-label">Top 100 브랜드 랭킹 이동 (Bump Chart)</span>
+  <span class="info-icon">?
+    <span class="info-tip">
+      <strong>📉 Bump Chart란?</strong><br>
+      각 선(Line) = 하나의 브랜드. 위로 올라갈수록 순위가 높습니다 (#1 = 최상단).<br>
+      <em>Each line = one brand. Higher = better rank (#1 at top).</em><br><br>
+      선이 없는 월 = 해당 월 Top 100 밖이거나 데이터 없음<br>
+      <em>No line = outside Top 100 or no data that month.</em>
+    </span>
+  </span>
+</div>
+
+<!-- 사용법 가이드 -->
+<div class="usage-guide">
+  <div class="usage-item"><span>▶</span>&nbsp;<strong>Play</strong> 버튼으로 월별 순위 변동 애니메이션 시작</div>
+  <span class="usage-sep">|</span>
+  <div class="usage-item"><span>🖱️</span>&nbsp;<strong>선·점 클릭</strong> → 브랜드 하이라이트 (나머지 흐림)</div>
+  <span class="usage-sep">|</span>
+  <div class="usage-item"><span>📅</span>&nbsp;<strong>월 헤더 클릭</strong> → 해당 월로 이동</div>
+  <span class="usage-sep">|</span>
+  <div class="usage-item"><span>🔍</span>&nbsp;<strong>검색창</strong>에 브랜드명 입력 → 자동 하이라이트</div>
+  <span class="usage-sep">|</span>
+  <div class="usage-item"><span>🖱️</span>&nbsp;점에 <strong>마우스 호버</strong> → 매출 채널 비중 상세 확인</div>
+</div>
+
+<div class="ctrl">
+  <button class="btn primary" id="playBtn" onclick="togglePlay()">▶ Play</button>
+  <button class="btn" onclick="doReset()">↺ Reset</button>
+  <div class="spd">
+    속도
+    <select onchange="animMs=+this.value">
+      <option value="1400">느림</option>
+      <option value="750" selected>보통</option>
+      <option value="350">빠름</option>
+    </select>
+  </div>
+</div>
+
+<div class="search-wrap">
+  <input type="text" id="searchBox" placeholder="🔍 브랜드명 검색 · Search brand name...">
+  <span class="info-icon">?
+    <span class="info-tip">
+      <strong>🔍 브랜드 검색</strong><br>
+      브랜드명 일부만 입력해도 자동 하이라이트됩니다.<br>
+      <em>Type part of a brand name to highlight it instantly.</em><br><br>
+      검색창을 비우면 전체 표시로 돌아옵니다.<br>
+      <em>Clear the box to show all brands again.</em>
+    </span>
+  </span>
+</div>
+
+<div class="bump-wrap">
+  <canvas id="bc"></canvas>
+  <div class="tt" id="tt"></div>
+</div>
+
+<!-- 레전드 -->
+<div class="leg-header">
+  <div class="sec-row" style="margin-bottom:0">
+    <span class="sec-label">브랜드 레전드</span>
+    <span class="info-icon">?
+      <span class="info-tip">
+        <strong>🏷️ 레전드 사용법</strong><br>
+        • 항목 <strong>클릭</strong> → 해당 브랜드 선 숨기기/보이기<br>
+        <em>Click to hide/show that brand's line.</em><br><br>
+        • 흐리게 표시 = 현재 숨겨진 브랜드<br>
+        <em>Dimmed = currently hidden brand.</em><br><br>
+        • 차트에서 선 클릭 → 해당 브랜드만 강조<br>
+        <em>Click a line on chart to highlight only that brand.</em><br><br>
+        • 빈 공간 클릭 → 하이라이트 해제<br>
+        <em>Click empty space to reset highlight.</em>
+      </span>
+    </span>
+  </div>
+  <span style="font-size:10.5px;color:var(--textt)">
+    총 <strong id="brandCount" style="color:var(--texts)">0</strong>개 브랜드 ·
+    <span id="mutedCount">0</span>개 숨김
+  </span>
+</div>
+<div class="leg-wrap" id="leg"></div>
+
+<!-- 데이터 기준 안내 -->
+<div class="footer-note">
+  <strong>📌 데이터 기준 안내 · Data Notes</strong><br>
+  · 출처: <strong>Kalodata &gt; Shop &gt; Category : Skincare</strong><br>
+  · 순위(Rank)는 각 월의 <strong>Revenue($) 내림차순</strong> 기준으로 산정됩니다.
+    <em>Rank is by descending Revenue($) within each month.</em><br>
+  · 특정 월에 선이 없는 브랜드는 해당 월 Top 100 밖이거나 데이터가 없는 경우입니다.
+    <em>Missing line = outside Top 100 or no data for that month.</em><br>
+  · Revenue는 Self-Operated + Affiliate + Shopping Mall 채널 합산 기준입니다.
+    <em>Revenue = Self-Operated + Affiliate + Shopping Mall channels combined.</em><br>
+  · TikTok Shop 플랫폼 내 집계 기준이며 외부 채널은 포함되지 않습니다.
+    <em>Based on TikTok Shop platform data only, excluding external channels.</em>
+</div>
+
+<script>
+const ML     = ["Sep 25", "Oct 25", "Nov 25", "Dec 25", "Jan 26", "Feb 26", "Mar 26", "Apr 26", "May 26"];
+const TOTALS = [16806557, 42041106, 78840574, 61764212, 54752466, 54364203, 62610445, 62005138, 46768080];
+const BRANDS = ["medicube US Store", "Dr.Melaxin", "Anua Store US", "JiYuSkin", "COSRX US", "mixsoon", "Peter Thomas Roth Labs", "Truly Beauty", "Point of View Beauty", "Terra Lotus", "The Ordinary Store", "NIDA OFFICIAL", "evilgoods", "Peach Slices", "beplain.shop", "WNP SKINCARE", "Gopure", "Qure Skincare", "SUNGBOON EDITOR", "SKINN Cosmetics", "CLEARSTEM Skincare", "Face Beauty Workshop", "YCZ Beauty Care Depot", "Prequelskin", "Babe Original", "VIYANTBEAUTY", "ForChics", "celimax US Store", "Summer Fridays", "DRMTLGY Shop", "Rvlaim", "BASED", "TIRTIR Inc.", "Beauty of Joseon US", "REJURAN US", "SKIN1004 US", "LOPEIE.SHOP", "L’Oréal Paris", "Laka US", "BIOHEAL BOH", "FrenchPharmacy", "Doll 10 Beauty", "Jeffree Star Cosmetics", "Osaka Ebisu", "QVC, Inc", "Fenty Beauty", "P.CALM", "Taren Cosmetics", "Madam afric", "Consult Beaute", "MENOKIN", "Centellian24", "SADOER-BEAUTY", "Burt's Bees", "Dr.Leo-USA", "Kopari Beauty", "nuorganic", "Livaclean", "Sha's Organic Skincare", "Golden-DP", "The Bikini Line Co.", "ROUND LAB", "eadem.co", "Zdeer Official", "Bloomward", "VT Cosmetics US", "Tower 28 Beauty", "VGO-beauty", "Dr.Healthy Lab", "The Fascia Movement", "Yuchengg shop", "EMUAID", "Biodance Store US", "Eight Saints Skincare", "Remedy Science", "KAHI US", "FemmeFinesse", "Dr Song", "Easydew Global", "The Estée Lauder Store", "terez & honor", "ROC", "I'm From US", "Saltair Body", "Oganacell Store US", "Ainube", "ILLIYOON US", "Clean Skin Club Shop", "Dr.Jart+", "Ki Cosmetics", "Meditherapy US Shop", "CeraVe", "Repair Oil", "Blue Waters", "dear, Klairs", "Almond Clear", "PalyVerse", "GMEELAN Store.US", "CityBeauty", "Clinique Store", "BRMUD", "Buttah Skin", "simplymandys", "Educated Mess", "Plouise USA", "SKINTIFIC US Store", "BLONDELIGHT LLC", "Danessa Myricks Beauty", "Eqqualberry", "Glow Recipe", "DR.HARRY INSTITUTE", "LumiSight", "Fine Club", "CYKLAR", "WOODNITY INC", "FREE APEX", "GMEELAN-US.Store", "Marin Skincare", "Fayahut", "StyleKorean US", "fafa star", "HAUA", "NEOVA", "Her Fantasy Box", "Cristal Cosmetics", "Unineed US", "Queen Tape", "SOME BY MI US", "Tmstoreshop1", "Laneige US", "Panim skincare", "Yikou-life", "Personal Day", "Dr.Althea US", "Mario Badescu", "rhode skin", "Jill Razor", "LUMAZO", "BONA BOOM", "JoyfulChoice", "grace and stella", "The Outset", "4 IN LOOK GLOBAL", "The Heritage Store", "Makari Shop Online", "Ole Henriksen", "IntoxicatedCosmetics", "Dr. Mopick", "Asterwood Beauty", "LUMAZO-US", "Rael", "Qinpeng67y", "Arencia", "rikilovesriki", "oganacell US", "Skin Deva", "Lucky King JJ", "Kohana Health", "SUNTIRC WWW", "e.l.f. Cosmetics", "Evereden", "Siret Cosmetics", "CANVAS BEAUTY BRAND", "Laura Geller Beauty", "ChapStick.US", "MAËLYS", "JEU'DEMEURE US Official", "Abib.US.Store", "USLCQNEAWR", "ICOTLE", "Torriden US", "The INKEY List", "manyo US", "Madeca Derma", "IN YOUR FACE SKINCARE", "StyleKorean USᅟᅠ", "Base Laboratories", "KraveBeauty", "Clarins USA", "d'Alba Piedmont", "MIAZYA BEAUTY", "Beauty Station US", "Beauty-Glo", "BANISH", "Pure Daily Care", "Weee Asian Supermarket", "belif USA", "Natural Workshop", "47 Skin USA", "Ragkun Brand store", "TOCOBO US", "Nurse Jamie", "Naturium", "Embryolisse", "Ashan shop", "iHerb", "Aquaphor", "Olay Skin Care", "IUNIK", "Topicals", "Vamy family-1", "Dr.Reju-All Store", "Firstfly", "Murad Skincare", "DR.HARRY LAB", "GIANTWATERMELON", "JLO Beauty", "Lopeie.Outlet", "BALMSHOT Lip Balm", "Jones Road Beauty"];
+const RAW    = {"medicube US Store": {"r": [1, 1, 1, 2, 2, 1, 1, 1, 1], "g": [3559334, 9396628, 20900222, 12567931, 11535035, 12738581, 14335705, 18302225, 13274127], "so": [128041, 188271, 983611, 418186, 422449, 429802, 584502, 758746, 456218], "af": [3402073, 9096908, 18671341, 11852069, 11006264, 12183290, 13587828, 17310596, 12647904], "ml": [29219, 111448, 1245269, 297675, 106321, 125487, 163374, 232882, 170004], "ap": [42.42, 43.2, 40.29, 44.03, 41.56, 38.41, 31.77, 27.7, 29.64]}, "Dr.Melaxin": {"r": [2, 2, 2, 1, 1, 2, 2, 2, 2], "g": [2127645, 4190612, 8958217, 13333468, 13003888, 12014459, 12871456, 10945590, 7387365], "so": [33581, 128613, 483457, 280003, 229237, 325693, 264658, 246994, 243171], "af": [2090403, 4047256, 8198840, 12939056, 12728622, 11641006, 12489372, 10632164, 7104811], "ml": [3659, 14741, 275919, 114408, 46029, 47759, 117425, 66431, 39382], "ap": [34.32, 31.94, 30.16, 37.44, 36.36, 31.11, 31.33, 30.08, 28.1]}, "Anua Store US": {"r": [3, 5, 5, 7, 10, 8, 8, 8, 6], "g": [1333397, 1390052, 2268737, 1218162, 885829, 995743, 1266807, 1140085, 981101], "so": [90703, 95211, 115987, 36404, 64, null, 1418, 1234, 187], "af": [1182600, 1194804, 1974546, 1106785, 862221, 963268, 1192570, 1094577, 931389], "ml": [60093, 100036, 178204, 74973, 23543, 32475, 72819, 44273, 49524], "ap": [45.04, 48.71, 45.81, 48.69, 43.08, 39.45, 39.55, 35.22, 35.5]}, "JiYuSkin": {"r": [4, 4, 8, 9, 4, 6, 5, 4, 3], "g": [722365, 1553506, 1854611, 1180648, 1818511, 1279397, 1434906, 1546065, 1321705], "so": [null, null, null, null, 57501, 76606, 84702, 123446, 60990], "af": [721030, 1550939, 1837296, 1174395, 1749388, 1194327, 1336980, 1385873, 1242974], "ml": [1335, 2566, 17314, 6252, 11621, 8463, 13223, 36745, 17740], "ap": [53.84, 59.66, 54.55, 56.83, 57.42, 57.81, 53.84, 58.22, 51.25]}, "COSRX US": {"r": [5, 7, 10, 6, 5, 4, 4, 7, 5], "g": [481451, 1050712, 1612143, 1410302, 1187671, 1464556, 1698605, 1249950, 1018836], "so": [3922, 3520, 25260, 6617, 8139, 24520, 149750, 89257, 117412], "af": [460007, 979306, 1525386, 1363170, 1166360, 1411362, 1519605, 1152388, 895086], "ml": [17521, 67886, 61496, 40514, 13171, 28673, 29249, 8304, 6336], "ap": [12.84, 15.97, 16.09, 18.56, 15.74, 17.64, 18.44, 20.17, 16.41]}, "mixsoon": {"r": [6, 12, 7, 4, 20, 18, 13, 13, 19], "g": [337856, 671389, 1863255, 1916348, 511830, 497954, 754766, 829917, 451134], "so": [26863, 62903, 127192, 123419, 78995, 83626, 123174, 152424, 101785], "af": [305537, 595443, 1675118, 1748892, 410204, 382669, 599338, 654623, 334477], "ml": [5455, 13043, 60943, 44036, 22630, 31659, 32253, 22869, 14871], "ap": [32.17, 31.74, 32.78, 31.32, 40.41, 39.08, 35.04, 32.2, 29.87]}, "Peter Thomas Roth Labs": {"r": [7, 8, 11, 15, 21, 28, 26, 27, 20], "g": [324188, 826842, 1502248, 667089, 483820, 279593, 386125, 366409, 440898], "so": [null, null, 84681, 3552, null, 424, 506, 164, 1400], "af": [319464, 788532, 1393325, 647339, 477414, 269145, 375329, 358557, 431261], "ml": [4723, 38310, 24240, 16197, 6406, 10024, 10289, 7688, 8236], "ap": [37.02, 31.81, 31.31, 36.92, 24.22, 26.59, 33.36, 32.54, 28.22]}, "Truly Beauty": {"r": [8, 9, 15, 12, 9, 9, 7, 9, 7], "g": [322075, 797510, 1063615, 928862, 910050, 982167, 1285895, 1125692, 978023], "so": [8058, 40648, 30170, 23458, 30825, 37563, 74312, 48024, 47685], "af": [313904, 755848, 1006541, 889369, 873583, 941763, 1186617, 1070503, 926405], "ml": [111, 1013, 26903, 16034, 5640, 2840, 24965, 7163, 3932], "ap": [28.11, 27.92, 25.74, 23.44, 27.15, 25.34, 25.27, 24.83, 24.28]}, "Point of View Beauty": {"r": [9, 10, 18, 20, 35, 21, 30, 26, 38], "g": [320002, 723146, 827160, 535760, 243960, 397669, 363606, 368693, 214610], "so": [null, null, null, null, null, 10714, 3528, 3016, 943], "af": [317184, 711204, 796142, 526430, 239919, 360251, 341720, 347867, 201299], "ml": [2818, 11942, 31018, 9329, 4041, 26703, 18357, 17810, 12367], "ap": [105.16, 102.28, 95.15, 86.09, 82.17, 81.57, 85.25, 76.91, 69.77]}, "Terra Lotus": {"r": [10, 16, 23, 22, 25, 23, 24, 31, 31], "g": [278908, 618363, 564025, 486473, 383004, 361805, 417552, 326832, 250515], "so": [null, null, null, null, null, null, null, null, null], "af": [278242, 617343, 561311, 485170, 382381, 361118, 416191, 325599, 250079], "ml": [666, 1019, 2713, 1302, 623, 687, 1360, 1233, 435], "ap": [15.51, 16.03, 14.92, 16.97, 17.18, 17.02, 17.58, 17.64, 17.1]}, "The Ordinary Store": {"r": [11, 13, 14, 11, 12, 7, 6, 12, 16], "g": [247317, 658044, 1104579, 1016773, 842910, 1166305, 1352563, 863333, 559976], "so": [8872, 14319, 62979, 28000, 17387, 29325, 76662, 9005, 6500], "af": [229038, 615580, 996733, 950084, 809129, 1119764, 1241153, 841326, 546573], "ml": [9406, 28144, 44866, 38688, 16393, 17215, 34746, 13002, 6902], "ap": [14.15, 13.37, 12.84, 13.85, 14.76, 14.86, 13.97, 13.65, 12.74]}, "NIDA OFFICIAL": {"r": [12, 18, 30, 29, 18, 13, 9, 10, 14], "g": [240966, 580493, 476346, 384119, 601378, 672586, 1266570, 912061, 574437], "so": [7804, 11517, 8636, 15369, 38862, 56280, 54338, 51513, 35596], "af": [233100, 568717, 466063, 367817, 561590, 613102, 1210382, 859292, 537319], "ml": [62, 259, 1646, 933, 926, 3203, 1849, 1255, 1520], "ap": [8.92, 8.68, 9.28, 11.4, 12.1, 12.42, 12.5, 14.29, 12.71]}, "evilgoods": {"r": [13, 14, 20, 19, 24, 30, 40, 24, 25], "g": [240324, 654804, 688306, 556851, 410802, 274996, 289712, 442416, 303919], "so": [null, null, null, null, null, null, null, null, 559], "af": [239869, 654397, 687117, 553478, 410508, 274613, 281279, 428312, 286472], "ml": [455, 407, 1188, 3372, 294, 382, 8433, 14103, 16886], "ap": [31.55, 31.35, 28.56, 31.37, 32.05, 32.49, 30.79, 39.93, 27.83]}, "Peach Slices": {"r": [14, 23, 25, 33, 28, 24, 22, 21, 26], "g": [230850, 474371, 526642, 335544, 315319, 359888, 545440, 544725, 300127], "so": [106, 238, 875, 390, null, 129, 314, 807, 151], "af": [229697, 470544, 512219, 330415, 312156, 355303, 542056, 538751, 296845], "ml": [1046, 3587, 13547, 4739, 3163, 4454, 3069, 5165, 3129], "ap": [17.91, 14.75, 12.61, 16.73, 18.09, 20.1, 21.5, 21.1, 19.49]}, "beplain.shop": {"r": [15, 11, 17, 27, 33, 52, 39, 51, 62], "g": [211983, 717176, 847310, 399832, 255952, 177485, 290518, 189569, 129317], "so": [453, null, 7634, 1339, 905, 505, 12640, 191, 367], "af": [210642, 705588, 831182, 392807, 249165, 171478, 272965, 184566, 126541], "ml": [887, 11588, 8494, 5685, 5881, 5501, 4912, 4811, 2408], "ap": [36.99, 38.39, 50.37, 50.99, 56.28, 47.35, 42.2, 50.02, 41.76]}, "WNP SKINCARE": {"r": [16, 24, 24, 25, 29, 39, 44, 32, 43], "g": [211796, 438632, 543505, 469971, 311794, 234386, 272299, 318515, 196049], "so": [81412, 150953, 30957, null, null, 5560, 6139, 201, null], "af": [116256, 263887, 385499, 349827, 283959, 213939, 253052, 288278, 180437], "ml": [14127, 23791, 127048, 120144, 27834, 14886, 13107, 30035, 15612], "ap": [34.21, 36.02, 37.49, 36.78, 35.16, 33.73, 25.83, 28.49, 27.95]}, "Gopure": {"r": [17, 28, 40, 43, 17, 22, 33, 6, 17], "g": [192670, 384450, 344710, 238284, 631964, 379675, 319398, 1262080, 552768], "so": [161, null, null, 63, null, null, 14015, 37552, 22119], "af": [191256, 379279, 313311, 215571, 624348, 312079, 296618, 1119791, 513369], "ml": [1251, 5170, 31398, 22649, 7615, 67596, 8765, 104737, 17278], "ap": [30.35, 32.11, 32.9, 35.74, 23.56, 25.83, 32.89, 23.34, 28.93]}, "Qure Skincare": {"r": [18, 3, 3, 14, 16, 17, 12, 22, 33], "g": [190791, 1570749, 4923351, 847598, 682316, 526732, 782766, 521005, 235220], "so": [null, null, null, null, null, null, 11177, 27492, 3612], "af": [186445, 1500447, 3829228, 798922, 632317, 488394, 664128, 327122, 175069], "ml": [4346, 70301, 1094123, 48676, 49998, 38337, 107461, 166390, 56537], "ap": [136.67, 121.17, 105.64, 137.06, 151.12, 153.57, 151.73, 96.02, 120.26]}, "SUNGBOON EDITOR": {"r": [19, 6, 9, 3, 3, 3, 3, 5, 8], "g": [190352, 1087083, 1701598, 2084668, 1880201, 1736712, 1798624, 1262418, 967971], "so": [163, 597, 589, 27097, 80308, 108165, 72792, 30064, 14279], "af": [177366, 1040169, 1602459, 1969278, 1727949, 1532009, 1656651, 1209832, 935581], "ml": [12823, 46316, 98550, 88291, 71942, 96537, 69180, 22520, 18111], "ap": [34.34, 35.4, 29.11, 30.94, 35.87, 39.17, 37.48, 35.3, 32.6]}, "SKINN Cosmetics": {"r": [20, 25, 16, 21, 23, 12, 27, 30, 27], "g": [188791, 393624, 1039053, 527166, 414119, 681199, 385086, 339497, 285861], "so": [74432, 85877, 247471, 142474, 155345, 153609, 109532, 77200, 69434], "af": [66665, 230885, 488170, 251355, 188904, 367000, 199956, 139631, 156104], "ml": [47692, 76861, 303411, 133336, 69869, 160589, 75597, 122666, 60322], "ap": [39.92, 49.43, 46.04, 39.97, 45.23, 46.61, 50.82, 48.76, 44.29]}, "CLEARSTEM Skincare": {"r": [21, 20, 21, 31, 27, 44, 47, 52, 54], "g": [176032, 522479, 685207, 361549, 332909, 216655, 266642, 188264, 142594], "so": [761, 10786, 17079, 15051, null, null, null, null, 504], "af": [169588, 500639, 567083, 293044, 283160, 201872, 246770, 176884, 133063], "ml": [5683, 11053, 101044, 53454, 49749, 14783, 19871, 11379, 9026], "ap": [47.8, 48.51, 49.22, 45.21, 45.89, 50.28, 57.28, 57.75, 57.43]}, "Face Beauty Workshop": {"r": [22, 40, 60, 32, 40, 66, 67, 78, 68], "g": [170544, 208301, 190709, 341328, 214914, 138780, 157638, 108939, 110249], "so": [null, null, 22, null, 58, 912, 693, 39, 346], "af": [169891, 206821, 189195, 339118, 213763, 136925, 155675, 108376, 109534], "ml": [653, 1480, 1491, 2209, 1092, 943, 1270, 524, 368], "ap": [12.09, 11.99, 11.51, 12.05, 13.75, 12.46, 9.77, 11.53, 11.03]}, "YCZ Beauty Care Depot": {"r": [23, 27, 26, 37, 54, 56, 61, 38, 32], "g": [153454, 386095, 525088, 289266, 149003, 165874, 184890, 294959, 241501], "so": [null, null, null, null, null, null, null, null, null], "af": [150088, 381020, 520217, 286194, 147324, 160385, 179669, 285833, 239387], "ml": [3366, 5074, 4870, 3072, 1678, 5489, 5221, 9125, 2113], "ap": [34.71, 32.3, 25.86, 27.86, 29.87, 28.22, 25.09, 23.1, 19.29]}, "Prequelskin": {"r": [24, 15, 13, 8, 7, 10, 11, 14, 18], "g": [152674, 646879, 1194213, 1212013, 993711, 943101, 870132, 712853, 486293], "so": [11656, null, 10930, 1058, 304, 540, 908, 3549, 1002], "af": [130346, 621434, 1097669, 1169264, 978368, 932813, 838167, 676954, 472103], "ml": [10671, 25444, 85613, 41691, 15038, 9747, 31056, 32348, 13188], "ap": [19.15, 20.53, 19.46, 25.1, 25.67, 30.4, 28.1, 28.75, 26.32]}, "Babe Original": {"r": [25, 34, 44, 35, 32, 29, 37, 33, 29], "g": [143411, 255149, 302983, 293389, 271176, 279522, 297513, 317662, 263983], "so": [3490, 7134, 10693, 9899, 5513, 7616, 3826, 4633, 4871], "af": [131502, 245812, 290227, 279964, 262565, 269796, 290251, 308549, 255245], "ml": [8418, 2201, 2061, 3526, 3097, 2109, 3435, 4479, 3866], "ap": [28.09, 29.44, 30.86, 33.82, 33.0, 26.79, 26.19, 26.84, 24.44]}, "VIYANTBEAUTY": {"r": [26, 37, 59, 44, null, 58, 42, 36, 45], "g": [142033, 216534, 191783, 230104, null, 159407, 287028, 304517, 188866], "so": [79, 9455, 14413, 18458, null, 34890, 83958, 19065, 6514], "af": [137289, 137464, 159789, 116489, null, 112920, 197639, 275235, 176391], "ml": [4664, 69615, 17579, 95156, null, 11597, 5430, 10216, 5960], "ap": [45.83, 39.54, 45.59, 40.32, null, 43.42, 40.12, 40.08, 39.57]}, "ForChics": {"r": [null, null, null, null, 26, 15, 21, 17, 24], "g": [null, null, null, null, 356025, 571926, 562907, 624047, 316820], "so": [null, null, null, null, null, null, null, null, null], "af": [null, null, null, null, 355910, 571846, 562834, 617624, 316180], "ml": [null, null, null, null, 114, 79, 73, 6423, 640], "ap": [null, null, null, null, 19.55, 19.49, 19.86, 23.05, 15.26]}, "celimax US Store": {"r": [27, 33, 39, 34, 30, 37, 46, 41, 34], "g": [141000, 259234, 347176, 315330, 311127, 239600, 266770, 267319, 231073], "so": [475, 620, 2460, 2482, 587, 46, 418, 444, 508], "af": [138969, 253030, 334901, 309273, 308568, 237556, 262138, 263531, 227775], "ml": [1554, 5583, 9814, 3574, 1971, 1997, 4213, 3343, 2790], "ap": [23.44, 23.0, 21.63, 23.79, 26.35, 26.56, 26.3, 30.54, 29.55]}, "Summer Fridays": {"r": [28, 17, 22, 48, 59, null, null, null, null], "g": [131392, 598707, 625894, 222979, 128014, null, null, null, null], "so": [768, 642, 2416, 1600, 387, null, null, null, null], "af": [96981, 562103, 588052, 205451, 99734, null, null, null, null], "ml": [33643, 35962, 35425, 15927, 27893, null, null, null, null], "ap": [29.22, 35.73, 38.23, 36.07, 43.5, null, null, null, null]}, "DRMTLGY Shop": {"r": [29, 26, 31, 28, 11, 16, 18, 16, 12], "g": [116334, 388548, 433020, 396362, 862007, 541390, 610771, 684516, 714120], "so": [19553, 57173, 101519, 90411, 140572, 127160, 168165, 188293, 167230], "af": [90316, 303583, 282009, 255563, 694117, 343618, 360283, 383682, 488145], "ml": [6465, 27791, 49491, 50387, 27317, 70612, 82322, 112540, 58744], "ap": [46.65, 43.1, 42.78, 46.04, 51.42, 48.47, 44.22, 33.7, 40.69]}, "Rvlaim": {"r": [30, 98, null, null, null, null, null, null, null], "g": [110117, 71843, null, null, null, null, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [59792, 42738, null, null, null, null, null, null, null], "ml": [50324, 29105, null, null, null, null, null, null, null], "ap": [9.98, 10.09, null, null, null, null, null, null, null]}, "BASED": {"r": [31, 31, 28, 16, 13, 11, 15, 15, 15], "g": [109160, 282742, 491887, 619892, 820972, 738030, 700107, 692117, 561137], "so": [88746, 202065, 309651, 321976, 419082, 245101, 228651, 334677, 249951], "af": [20413, 80677, 182236, 297865, 401890, 492910, 471410, 357378, 311185], "ml": [null, null, null, 50, null, 19, 45, 61, null], "ap": [22.3, 21.86, 21.2, 23.67, 22.66, 21.0, 21.68, 22.29, 21.01]}, "TIRTIR Inc.": {"r": [32, 68, 46, 64, 84, 86, 56, 68, null], "g": [106548, 104821, 240212, 164813, 96999, 98948, 214468, 121974, null], "so": [null, null, 9388, 7135, 3212, 11, 8754, 848, null], "af": [75185, 90745, 199200, 138605, 85561, 91011, 174334, 91650, null], "ml": [31363, 14075, 31623, 19072, 8226, 7926, 31380, 29475, null], "ap": [13.84, 12.11, 13.18, 9.74, 14.72, 23.98, 18.53, 23.57, null]}, "Beauty of Joseon US": {"r": [33, 19, 6, 13, 19, 20, 20, 28, 36], "g": [105717, 563624, 1914327, 889535, 587762, 423052, 567584, 350227, 223612], "so": [1913, 9044, 19432, 30518, 14544, 13311, 12152, 15651, 27303], "af": [101012, 547484, 1866538, 713801, 561386, 403610, 537823, 327158, 192473], "ml": [2791, 7094, 28356, 145214, 11830, 6130, 17608, 7416, 3835], "ap": [17.79, 18.51, 14.76, 14.61, 16.94, 15.68, 14.35, 13.94, 12.91]}, "REJURAN US": {"r": [34, 48, 45, 40, 38, 25, 19, 23, 13], "g": [105183, 165169, 283443, 259676, 223920, 355066, 601576, 478805, 605458], "so": [1809, 4346, 7778, 4720, 3281, 3697, 7501, 3862, 2962], "af": [91305, 150135, 241514, 229429, 189267, 302876, 522554, 420028, 521872], "ml": [12068, 10687, 34150, 25526, 31371, 48491, 71520, 54915, 80623], "ap": [39.69, 45.89, 45.11, 39.73, 40.38, 46.4, 41.74, 50.74, 49.63]}, "SKIN1004 US": {"r": [35, 29, 4, 5, 6, 5, 10, 3, 4], "g": [104863, 353493, 2625737, 1623113, 1090136, 1330762, 1048759, 1693975, 1090355], "so": [9821, 21868, 91823, 35360, 75396, 45563, 19171, 100601, 73975], "af": [88747, 310447, 2462378, 1561200, 1011985, 1280340, 1021378, 1576507, 1011176], "ml": [6294, 21176, 71534, 26552, 2754, 4858, 8209, 16867, 5203], "ap": [13.97, 14.53, 14.52, 17.1, 18.62, 21.98, 25.42, 26.55, 25.17]}, "LOPEIE.SHOP": {"r": [36, 30, 96, 87, 53, 53, null, null, null], "g": [104743, 353276, 122032, 119538, 160423, 172433, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [104702, 353104, 121407, 118958, 160333, 172276, null, null, null], "ml": [40, 172, 625, 580, 89, 157, null, null, null], "ap": [7.74, 9.31, 11.31, 12.87, 11.61, 10.42, null, null, null]}, "L’Oréal Paris": {"r": [37, 22, 27, 62, 57, 61, 84, null, null], "g": [100752, 476813, 502065, 170155, 130976, 148413, 117869, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [98361, 472876, 491477, 166617, 128090, 146634, 116405, null, null], "ml": [2391, 3937, 10588, 3537, 2886, 1778, 1464, null, null], "ap": [10.87, 16.85, 19.56, 13.73, 13.32, 16.76, 18.54, null, null]}, "Laka US": {"r": [null, null, null, null, 37, 46, 17, 19, 23], "g": [null, null, null, null, 225936, 206219, 621776, 583510, 337149], "so": [null, null, null, null, 140, 1310, 11621, 3501, null], "af": [null, null, null, null, 222944, 204870, 599825, 577758, 335811], "ml": [null, null, null, null, 2851, 39, 10329, 2249, 1338], "ap": [null, null, null, null, 15.12, 15.96, 17.0, 20.38, 16.35]}, "BIOHEAL BOH": {"r": [38, 36, 19, 24, 36, 41, 28, 42, 10], "g": [97938, 229181, 713146, 473945, 233635, 226107, 384169, 263704, 830304], "so": [null, null, null, null, null, null, null, 134, 24929], "af": [97535, 216255, 671656, 463906, 227422, 222792, 374377, 254125, 794803], "ml": [402, 12926, 41490, 10038, 6213, 3315, 9792, 9444, 10571], "ap": [22.39, 31.37, 26.53, 29.42, 33.8, 31.22, 27.95, 33.35, 24.68]}, "FrenchPharmacy": {"r": [39, 32, 34, 42, 39, null, null, null, 76], "g": [95624, 275176, 393092, 243971, 216692, null, null, null, 89990], "so": [321, 117, 326, 696, 427, null, null, null, null], "af": [89284, 257319, 360468, 228573, 201688, null, null, null, 80800], "ml": [6018, 17739, 32297, 14701, 14575, null, null, null, 9189], "ap": [51.61, 49.62, 38.78, 41.08, 49.18, null, null, null, 62.23]}, "Doll 10 Beauty": {"r": [null, null, null, null, null, null, null, null, 39], "g": [null, null, null, null, null, null, null, null, 208613], "so": [null, null, null, null, null, null, null, null, 6623], "af": [null, null, null, null, null, null, null, null, 198204], "ml": [null, null, null, null, null, null, null, null, 3785], "ap": [null, null, null, null, null, null, null, null, 49.13]}, "Jeffree Star Cosmetics": {"r": [40, 39, 51, 53, 47, 50, 50, 64, 51], "g": [90247, 210847, 211216, 202346, 178882, 187888, 239194, 138958, 155599], "so": [44561, 151450, 180234, 114259, 131276, 141940, 149868, 87817, 74850], "af": [21569, 34391, 18198, 24508, 37685, 27976, 36585, 31270, 41442], "ml": [24116, 25005, 12783, 63578, 9921, 17971, 52741, 19870, 39306], "ap": [37.22, 32.97, 30.1, 31.57, 33.45, 33.32, 28.02, 29.25, 28.18]}, "Osaka Ebisu": {"r": [41, 42, 55, 71, 71, 96, 92, null, null], "g": [80281, 198447, 197035, 148651, 109254, 90690, 103183, null, null], "so": [1371, 3185, 2556, 920, 695, 1719, 2403, null, null], "af": [77871, 192133, 190078, 142276, 104864, 85122, 98817, null, null], "ml": [1038, 3128, 4400, 5454, 3694, 3847, 1962, null, null], "ap": [9.75, 10.5, 10.37, 9.67, 11.04, 10.17, 9.62, null, null]}, "QVC, Inc": {"r": [null, null, 41, 39, null, 72, null, 77, 50], "g": [null, null, 309921, 277303, null, 118992, null, 109454, 162661], "so": [null, null, 78277, 39620, null, 14147, null, 35130, 119011], "af": [null, null, 135102, 128650, null, 51801, null, 55904, 33572], "ml": [null, null, 96541, 109032, null, 53043, null, 18418, 10077], "ap": [null, null, 69.6, 82.56, null, 60.01, null, 52.8, 67.72]}, "Fenty Beauty": {"r": [42, 96, 100, 84, null, 94, 53, null, null], "g": [72875, 72478, 111900, 120818, null, 92994, 218199, null, null], "so": [4480, 128, 3540, null, null, 1661, 9073, null, null], "af": [66494, 64510, 87623, 106385, null, 74141, 188523, null, null], "ml": [1900, 7840, 20736, 14432, null, 17192, 20602, null, null], "ap": [37.09, 38.05, 34.11, 36.04, null, 43.33, 46.62, null, null]}, "P.CALM": {"r": [43, 65, null, null, null, null, null, null, null], "g": [68095, 107113, null, null, null, null, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [64940, 100619, null, null, null, null, null, null, null], "ml": [3155, 6494, null, null, null, null, null, null, null], "ap": [19.59, 19.6, null, null, null, null, null, null, null]}, "Taren Cosmetics": {"r": [44, 50, 82, 59, 49, 69, 87, 83, null], "g": [65754, 157666, 152639, 176873, 173802, 129354, 116299, 101331, null], "so": [null, null, null, null, null, null, null, null, null], "af": [65608, 157005, 150699, 175556, 172665, 128146, 114812, 100775, null], "ml": [146, 660, 1939, 1317, 1136, 1208, 1486, 555, null], "ap": [8.42, 8.22, 7.13, 8.56, 8.35, 9.59, 9.62, 9.27, null]}, "Madam afric": {"r": [45, 45, 50, null, null, null, null, null, null], "g": [64101, 189505, 211679, null, null, null, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [63080, 187868, 208241, null, null, null, null, null, null], "ml": [1020, 1637, 3437, null, null, null, null, null, null], "ap": [11.55, 9.66, 10.85, null, null, null, null, null, null]}, "Consult Beaute": {"r": [46, 44, 52, 56, 62, 79, null, null, null], "g": [62006, 194460, 209298, 189451, 123354, 106915, null, null, null], "so": [58746, 175814, 146280, 130039, 85918, 76642, null, null, null], "af": [1216, 5720, 11578, 18811, 12537, 10316, null, null, null], "ml": [2043, 12925, 51440, 40601, 24898, 19956, null, null, null], "ap": [36.76, 41.09, 48.99, 47.26, 55.22, 57.24, null, null, null]}, "MENOKIN": {"r": [null, null, null, null, null, null, null, 46, 49], "g": [null, null, null, null, null, null, null, 216643, 164679], "so": [null, null, null, null, null, null, null, 517, null], "af": [null, null, null, null, null, null, null, 214244, 162603], "ml": [null, null, null, null, null, null, null, 1881, 2076], "ap": [null, null, null, null, null, null, null, 24.37, 24.63]}, "Centellian24": {"r": [47, 46, 35, 18, 22, 34, 29, 29, 30], "g": [59847, 176018, 385523, 574345, 432061, 241493, 379718, 345362, 257471], "so": [9091, 18004, 21032, 49663, 28333, 18091, 13823, 8159, 15522], "af": [47108, 142986, 284771, 489853, 392995, 214429, 356593, 325713, 229362], "ml": [3647, 15027, 79719, 34828, 10733, 8972, 9301, 11489, 12587], "ap": [21.83, 24.58, 27.56, 23.37, 30.27, 32.82, 34.14, 38.38, 36.88]}, "SADOER-BEAUTY": {"r": [48, 52, 98, 85, null, 74, 65, 74, 93], "g": [59364, 136474, 113472, 120780, null, 116032, 162941, 118281, 77508], "so": [230, 682, 732, 1468, null, 10835, 10726, 10258, 8176], "af": [57856, 133355, 109421, 115985, null, 105099, 151912, 107415, 68906], "ml": [1277, 2435, 3319, 3325, null, 98, 302, 608, 424], "ap": [23.88, 25.15, 22.72, 22.36, null, 18.95, 13.79, 14.53, 14.08]}, "Burt's Bees": {"r": [null, null, 48, null, null, null, null, null, null], "g": [null, null, 221041, null, null, null, null, null, null], "so": [null, null, 728, null, null, null, null, null, null], "af": [null, null, 177785, null, null, null, null, null, null], "ml": [null, null, 42527, null, null, null, null, null, null], "ap": [null, null, 11.89, null, null, null, null, null, null]}, "Dr.Leo-USA": {"r": [49, 74, 32, 17, 8, 14, 14, 20, 21], "g": [56072, 96944, 412004, 614175, 934934, 642980, 746722, 557639, 413644], "so": [null, null, null, 427, 33, 51, 3340, 1294, 698], "af": [51303, 91209, 388357, 596838, 915864, 632666, 733048, 539343, 404421], "ml": [4768, 5734, 23646, 16909, 19036, 10261, 10332, 17002, 8525], "ap": [16.31, 16.8, 14.07, 15.58, 16.58, 21.2, 18.67, 20.13, 15.04]}, "Kopari Beauty": {"r": [null, null, null, null, null, 49, 54, 48, 58], "g": [null, null, null, null, null, 190253, 218098, 199324, 131287], "so": [null, null, null, null, null, 14565, 31310, 32693, 30053], "af": [null, null, null, null, null, 167637, 173699, 151314, 96291], "ml": [null, null, null, null, null, 8050, 13088, 15316, 4942], "ap": [null, null, null, null, null, 57.67, 60.55, 53.35, 50.65]}, "nuorganic": {"r": [50, 56, 76, 80, 41, 67, 75, 86, 94], "g": [55352, 124683, 157849, 128443, 207174, 138505, 139042, 99201, 77325], "so": [9675, 15927, 20654, 11634, 23389, 14395, 8128, 8526, 2464], "af": [41939, 105574, 127507, 108145, 181907, 122057, 128483, 86153, 73184], "ml": [3736, 3181, 9687, 8663, 1876, 2052, 2430, 4521, 1675], "ap": [39.57, 37.67, 31.1, 31.54, 33.23, 32.94, 34.07, 33.83, 32.79]}, "Livaclean": {"r": [51, 57, 93, null, null, null, null, null, null], "g": [53979, 116538, 123975, null, null, null, null, null, null], "so": [null, 29, 690, null, null, null, null, null, null], "af": [52389, 107759, 106152, null, null, null, null, null, null], "ml": [1590, 8748, 17132, null, null, null, null, null, null], "ap": [13.34, 12.67, 11.5, null, null, null, null, null, null]}, "Sha's Organic Skincare": {"r": [52, 51, 63, null, 68, 82, null, null, null], "g": [53670, 150394, 176751, null, 112470, 105462, null, null, null], "so": [29992, 81403, 76349, null, 63343, 39104, null, null, null], "af": [8526, 19589, 19504, null, 11113, 9575, null, null, null], "ml": [15152, 49401, 80897, null, 38013, 56783, null, null, null], "ap": [79.16, 74.67, 74.74, null, 114.88, 97.47, null, null, null]}, "Golden-DP": {"r": [53, 55, null, null, null, null, null, null, null], "g": [51568, 126562, null, null, null, null, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [49, 265, null, null, null, null, null, null, null], "ml": [51519, 126296, null, null, null, null, null, null, null], "ap": [16.44, 16.78, null, null, null, null, null, null, null]}, "The Bikini Line Co.": {"r": [null, 53, null, 78, 80, null, 81, 56, 47], "g": [null, 132007, null, 129856, 99431, null, 122749, 166085, 175188], "so": [null, 80059, null, 93268, 75739, null, 67853, 111436, 87045], "af": [null, 51917, null, 36587, 23692, null, 54895, 54649, 88142], "ml": [null, 29, null, null, null, null, null, null, null], "ap": [null, 30.88, null, 29.99, 35.27, null, 35.14, 37.49, 35.34]}, "ROUND LAB": {"r": [null, null, 53, 60, 85, 97, 83, 90, null], "g": [null, null, 205041, 172465, 95248, 90401, 118938, 96387, null], "so": [null, null, 796, 635, 107, null, null, null, null], "af": [null, null, 190716, 163971, 92391, 88042, 113629, 89789, null], "ml": [null, null, 13528, 7858, 2749, 2358, 5308, 6597, null], "ap": [null, null, 17.29, 17.61, 19.91, 20.79, 21.57, 20.44, null]}, "eadem.co": {"r": [54, 49, 38, 50, 66, 32, 25, 40, 28], "g": [48957, 163820, 370371, 209595, 118072, 256866, 407377, 268987, 270057], "so": [4583, 2808, 8354, 13095, 6840, 6600, 3528, 9719, 18078], "af": [44090, 157799, 345036, 186326, 109489, 248705, 401281, 256132, 249494], "ml": [284, 3213, 16981, 10173, 1743, 1561, 2568, 3136, 2485], "ap": [23.19, 48.08, 47.11, 32.65, 26.23, 24.89, 24.96, 26.28, 29.6]}, "Zdeer Official": {"r": [null, null, null, 54, 73, null, null, null, null], "g": [null, null, null, 192416, 106596, null, null, null, null], "so": [null, null, null, null, 135, null, null, null, null], "af": [null, null, null, 187020, 102610, null, null, null, null], "ml": [null, null, null, 5395, 3850, null, null, null, null], "ap": [null, null, null, 46.23, 48.23, null, null, null, null]}, "Bloomward": {"r": [55, 38, null, null, null, null, null, null, null], "g": [48060, 215381, null, null, null, null, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [36351, 213719, null, null, null, null, null, null, null], "ml": [11708, 1661, null, null, null, null, null, null, null], "ap": [6.9, 6.88, null, null, null, null, null, null, null]}, "VT Cosmetics US": {"r": [56, 63, 58, null, null, null, null, null, null], "g": [47062, 109511, 195201, null, null, null, null, null, null], "so": [null, null, 360, null, null, null, null, null, null], "af": [40976, 95848, 162637, null, null, null, null, null, null], "ml": [6085, 13662, 32204, null, null, null, null, null, null], "ap": [16.92, 17.2, 17.57, null, null, null, null, null, null]}, "Tower 28 Beauty": {"r": [null, null, 56, null, null, null, null, null, null], "g": [null, null, 195516, null, null, null, null, null, null], "so": [null, null, 7642, null, null, null, null, null, null], "af": [null, null, 175114, null, null, null, null, null, null], "ml": [null, null, 12760, null, null, null, null, null, null], "ap": [null, null, 17.0, null, null, null, null, null, null]}, "VGO-beauty": {"r": [57, 54, 62, 65, 69, null, null, null, null], "g": [46937, 128211, 179514, 164205, 110650, null, null, null, null], "so": [90, 1368, 1388, 874, 1258, null, null, null, null], "af": [40110, 112061, 155974, 118295, 94958, null, null, null, null], "ml": [6736, 14782, 22151, 45034, 14432, null, null, null, null], "ap": [29.56, 30.98, 31.24, 28.36, 31.27, null, null, null, null]}, "Dr.Healthy Lab": {"r": [null, null, null, 57, 51, 63, null, null, null], "g": [null, null, null, 187960, 163768, 146164, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [null, null, null, 15698, 14786, 12693, null, null, null], "ml": [null, null, null, 172262, 148982, 133470, null, null, null], "ap": [null, null, null, 24.57, 24.54, 24.96, null, null, null]}, "The Fascia Movement": {"r": [null, null, null, null, null, null, 57, 76, null], "g": [null, null, null, null, null, null, 213712, 110826, null], "so": [null, null, null, null, null, null, 161379, 62906, null], "af": [null, null, null, null, null, null, 24823, 26937, null], "ml": [null, null, null, null, null, null, 27509, 20982, null], "ap": [null, null, null, null, null, null, 159.73, 148.16, null]}, "Yuchengg shop": {"r": [58, 67, null, null, null, null, null, null, null], "g": [46275, 104940, null, null, null, null, null, null, null], "so": [19379, 30571, null, null, null, null, null, null, null], "af": [26191, 73665, null, null, null, null, null, null, null], "ml": [703, 703, null, null, null, null, null, null, null], "ap": [15.99, 15.99, null, null, null, null, null, null, null]}, "EMUAID": {"r": [null, 58, 85, 95, 95, null, null, null, null], "g": [null, 115858, 146048, 106048, 86330, null, null, null, null], "so": [null, 77767, 71480, 11770, 23402, null, null, null, null], "af": [null, 37439, 72174, 87824, 57354, null, null, null, null], "ml": [null, 651, 2393, 6453, 5572, null, null, null, null], "ap": [null, 25.59, 22.14, 24.14, 26.75, null, null, null, null]}, "Biodance Store US": {"r": [null, null, null, 58, 81, null, 35, 25, 22], "g": [null, null, null, 185960, 98246, null, 303388, 411322, 403683], "so": [null, null, null, null, 55, null, 3917, 4693, 2185], "af": [null, null, null, 172512, 92294, null, 289466, 396319, 394806], "ml": [null, null, null, 13448, 5895, null, 10004, 10309, 6690], "ap": [null, null, null, 27.11, 28.86, null, 37.84, 33.87, 29.5]}, "Eight Saints Skincare": {"r": [null, null, null, null, null, null, null, 58, null], "g": [null, null, null, null, null, null, null, 159817, null], "so": [null, null, null, null, null, null, null, null, null], "af": [null, null, null, null, null, null, null, 159482, null], "ml": [null, null, null, null, null, null, null, 335, null], "ap": [null, null, null, null, null, null, null, 23.05, null]}, "Remedy Science": {"r": [59, 35, 36, 41, 34, 42, 59, 45, 46], "g": [45764, 252002, 376365, 251869, 248991, 225826, 213235, 239976, 176898], "so": [7200, 19894, 109066, 40157, 6422, 61486, 74552, 83520, 53315], "af": [35627, 221929, 251610, 183916, 231664, 154035, 128553, 143864, 113356], "ml": [2937, 10178, 15688, 27795, 10905, 10304, 10130, 12591, 10226], "ap": [31.69, 32.02, 30.65, 35.03, 29.59, 27.8, 30.28, 26.83, 26.93]}, "KAHI US": {"r": [null, 59, 54, 77, 77, 93, 78, 59, 44], "g": [null, 115467, 202855, 131069, 100607, 93855, 129131, 157730, 193337], "so": [null, null, null, 22, null, null, null, 93, 174], "af": [null, 113676, 198809, 129628, 99543, 91804, 127532, 152885, 190366], "ml": [null, 1790, 4045, 1417, 1064, 2050, 1598, 4750, 2796], "ap": [null, 20.36, 16.17, 22.74, 22.72, 20.78, 19.92, 20.31, 21.72]}, "FemmeFinesse": {"r": [60, 92, null, null, null, null, null, null, null], "g": [45432, 76103, null, null, null, null, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [43597, 72324, null, null, null, null, null, null, null], "ml": [1834, 3778, null, null, null, null, null, null, null], "ap": [11.63, 11.26, null, null, null, null, null, null, null]}, "Dr Song": {"r": [null, null, null, null, 60, null, null, null, null], "g": [null, null, null, null, 127957, null, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [null, null, null, null, 126367, null, null, null, null], "ml": [null, null, null, null, 1589, null, null, null, null], "ap": [null, null, null, null, 46.38, null, null, null, null]}, "Easydew Global": {"r": [61, null, null, null, null, null, null, null, null], "g": [43898, null, null, null, null, null, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [37775, null, null, null, null, null, null, null, null], "ml": [6122, null, null, null, null, null, null, null, null], "ap": [33.21, null, null, null, null, null, null, null, null]}, "The Estée Lauder Store": {"r": [null, null, null, null, null, null, null, null, 61], "g": [null, null, null, null, null, null, null, null, 129844], "so": [null, null, null, null, null, null, null, null, 833], "af": [null, null, null, null, null, null, null, null, 120236], "ml": [null, null, null, null, null, null, null, null, 8775], "ap": [null, null, null, null, null, null, null, null, 38.76]}, "terez & honor": {"r": [62, 62, 77, 61, 52, 55, 64, 49, 79], "g": [43038, 109668, 157260, 171422, 163509, 167869, 164131, 198003, 88238], "so": [null, null, null, null, null, null, 24, 37, null], "af": [42614, 107913, 154317, 167800, 161384, 165100, 159827, 194905, 86948], "ml": [424, 1755, 2943, 3621, 2125, 2768, 4279, 3060, 1290], "ap": [22.62, 20.59, 20.91, 21.56, 21.99, 21.06, 23.11, 24.75, 16.02]}, "ROC": {"r": [null, null, null, null, null, 62, null, null, null], "g": [null, null, null, null, null, 146918, null, null, null], "so": [null, null, null, null, null, 1847, null, null, null], "af": [null, null, null, null, null, 139969, null, null, null], "ml": [null, null, null, null, null, 5101, null, null, null], "ap": [null, null, null, null, null, 25.12, null, null, null]}, "I'm From US": {"r": [63, 76, 43, 46, null, null, 86, 73, 95], "g": [43034, 95611, 303726, 225868, null, null, 117198, 119179, 76324], "so": [1155, 4004, 6903, 4209, null, null, 123, 330, 329], "af": [31827, 76956, 197517, 186887, null, null, 97873, 103297, 62488], "ml": [10052, 14650, 99304, 34771, null, null, 19201, 15551, 13506], "ap": [13.08, 17.42, 22.19, 16.87, null, null, 24.62, 29.97, 19.86]}, "Saltair Body": {"r": [null, null, null, null, 63, 36, 43, 62, 52], "g": [null, null, null, null, 120551, 239898, 277278, 141953, 148540], "so": [null, null, null, null, null, null, null, null, 274], "af": [null, null, null, null, 120011, 237634, 271925, 133641, 138827], "ml": [null, null, null, null, 540, 2264, 5353, 8311, 9437], "ap": [null, null, null, null, 49.37, 47.13, 47.89, 43.62, 37.38]}, "Oganacell Store US": {"r": [null, null, null, null, null, null, null, null, 63], "g": [null, null, null, null, null, null, null, null, 120961], "so": [null, null, null, null, null, null, null, null, null], "af": [null, null, null, null, null, null, null, null, 119592], "ml": [null, null, null, null, null, null, null, null, 1369], "ap": [null, null, null, null, null, null, null, null, 23.71]}, "Ainube": {"r": [64, 60, null, null, null, null, null, null, null], "g": [40184, 113924, null, null, null, null, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [31322, 106740, null, null, null, null, null, null, null], "ml": [8862, 7183, null, null, null, null, null, null, null], "ap": [23.2, 24.38, null, null, null, null, null, null, null]}, "ILLIYOON US": {"r": [null, null, 64, 30, 48, 100, 70, 69, 69], "g": [null, null, 176155, 377395, 176086, 86858, 153284, 120952, 107055], "so": [null, null, null, null, null, null, 5102, 275, null], "af": [null, null, 169741, 368965, 170590, 85754, 145743, 119026, 104852], "ml": [null, null, 6414, 8430, 5496, 1104, 2437, 1650, 2202], "ap": [null, null, 16.78, 21.8, 19.97, 22.8, 20.63, 16.94, 16.17]}, "Clean Skin Club Shop": {"r": [null, null, null, null, 64, null, null, null, null], "g": [null, null, null, null, 119415, null, null, null, null], "so": [null, null, null, null, 9988, null, null, null, null], "af": [null, null, null, null, 108919, null, null, null, null], "ml": [null, null, null, null, 508, null, null, null, null], "ap": [null, null, null, null, 10.13, null, null, null, null]}, "Dr.Jart+": {"r": [null, null, null, null, null, 64, null, null, null], "g": [null, null, null, null, null, 144869, null, null, null], "so": [null, null, null, null, null, 5285, null, null, null], "af": [null, null, null, null, null, 123658, null, null, null], "ml": [null, null, null, null, null, 15925, null, null, null], "ap": [null, null, null, null, null, 29.14, null, null, null]}, "Ki Cosmetics": {"r": [65, 75, 49, 55, 43, 48, 49, 60, 55], "g": [39482, 96390, 217585, 191149, 201243, 198439, 240201, 153599, 137868], "so": [null, 2086, null, 370, 234, 134, 5821, 5334, 16399], "af": [37282, 89940, 201165, 178025, 196497, 189218, 222144, 131759, 104342], "ml": [2199, 4363, 16419, 12753, 4511, 9086, 12235, 16505, 17126], "ap": [59.1, 60.97, 58.65, 62.82, 60.43, 59.59, 59.41, 61.17, 59.5]}, "Meditherapy US Shop": {"r": [null, null, null, null, null, 65, null, null, null], "g": [null, null, null, null, null, 140313, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [null, null, null, null, null, 139605, null, null, null], "ml": [null, null, null, null, null, 708, null, null, null], "ap": [null, null, null, null, null, 20.27, null, null, null]}, "CeraVe": {"r": [66, null, null, null, null, null, 74, 53, 40], "g": [37890, null, null, null, null, null, 143794, 176203, 203249], "so": [709, null, null, null, null, null, null, null, 371], "af": [34899, null, null, null, null, null, 139191, 171594, 198688], "ml": [2282, null, null, null, null, null, 4602, 4609, 4189], "ap": [14.97, null, null, null, null, null, 15.95, 15.1, 14.4]}, "Repair Oil": {"r": [null, null, null, 66, 93, 27, 58, 100, 71], "g": [null, null, null, 162111, 88699, 282768, 213497, 88214, 101195], "so": [null, null, null, 104449, 68406, 260794, 196932, 58174, 66011], "af": [null, null, null, null, 908, 1374, null, 6993, 5134], "ml": [null, null, null, 57662, 19385, 20600, 16565, 23047, 30050], "ap": [null, null, null, 93.22, 59.77, 113.97, 95.57, 124.95, 142.33]}, "Blue Waters": {"r": [67, null, null, null, null, null, null, null, null], "g": [37750, null, null, null, null, null, null, null, null], "so": [11574, null, null, null, null, null, null, null, null], "af": [null, null, null, null, null, null, null, null, null], "ml": [26176, null, null, null, null, null, null, null, null], "ap": [31.17, null, null, null, null, null, null, null, null]}, "dear, Klairs": {"r": [null, null, 67, 90, null, null, null, null, null], "g": [null, null, 167492, 115404, null, null, null, null, null], "so": [null, null, 1403, 406, null, null, null, null, null], "af": [null, null, 124025, 90696, null, null, null, null, null], "ml": [null, null, 42063, 24301, null, null, null, null, null], "ap": [null, null, 14.14, 19.56, null, null, null, null, null]}, "Almond Clear": {"r": [null, null, null, 67, null, null, 52, 57, 64], "g": [null, null, null, 160544, null, null, 225734, 161810, 120751], "so": [null, null, null, 448, null, null, null, null, 32], "af": [null, null, null, 159281, null, null, 225296, 161381, 120493], "ml": [null, null, null, 814, null, null, 438, 429, 225], "ap": [null, null, null, 28.86, null, null, 29.89, 32.27, 29.73]}, "PalyVerse": {"r": [null, null, null, null, 67, 95, 91, 95, null], "g": [null, null, null, null, 112883, 91892, 105350, 92326, null], "so": [null, null, null, null, null, null, null, null, null], "af": [null, null, null, null, 112883, 91845, 105350, 92279, null], "ml": [null, null, null, null, null, 46, null, 46, null], "ap": [null, null, null, null, 44.39, 46.96, 48.86, 47.4, null]}, "GMEELAN Store.US": {"r": [68, null, null, null, 97, null, null, null, null], "g": [37582, null, null, null, 85276, null, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [4686, null, null, null, 10797, null, null, null, null], "ml": [32896, null, null, null, 74478, null, null, null, null], "ap": [10.52, null, null, null, 12.55, null, null, null, null]}, "CityBeauty": {"r": [null, null, null, 68, 72, null, null, null, null], "g": [null, null, null, 158302, 106690, null, null, null, null], "so": [null, null, null, 2243, 6439, null, null, null, null], "af": [null, null, null, 136805, 94581, null, null, null, null], "ml": [null, null, null, 19253, 5669, null, null, null, null], "ap": [null, null, null, 52.96, 50.9, null, null, null, null]}, "Clinique Store": {"r": [null, null, null, null, null, null, 68, 54, 57], "g": [null, null, null, null, null, null, 156915, 169613, 133875], "so": [null, null, null, null, null, null, 3273, 4261, null], "af": [null, null, null, null, null, null, 147253, 160971, 129443], "ml": [null, null, null, null, null, null, 6388, 4381, 4432], "ap": [null, null, null, null, null, null, 50.83, 71.93, 69.22]}, "BRMUD": {"r": [69, 69, 71, 49, 88, 81, 85, 92, 87], "g": [36315, 102966, 164387, 217127, 93846, 105945, 117685, 94555, 80477], "so": [10474, 17320, 23583, 10232, 3794, 4638, 3392, 9448, 5735], "af": [25328, 83955, 136976, 202576, 86193, 96281, 111654, 84131, 72074], "ml": [513, 1690, 3827, 4318, 3858, 5025, 2637, 974, 2667], "ap": [31.97, 24.81, 25.66, 26.94, 24.26, 25.38, 26.97, 21.68, 20.89]}, "Buttah Skin": {"r": [null, null, 69, 69, null, null, null, 98, null], "g": [null, null, 166778, 150819, null, null, null, 89382, null], "so": [null, null, 1312, 1023, null, null, null, 3227, null], "af": [null, null, 138325, 132235, null, null, null, 82585, null], "ml": [null, null, 27140, 17560, null, null, null, 3569, null], "ap": [null, null, 15.7, 29.0, null, null, null, 24.22, null]}, "simplymandys": {"r": [70, 70, 84, null, null, 90, 38, 44, 67], "g": [35266, 102569, 151898, null, null, 96081, 294667, 248014, 110951], "so": [3732, 36749, 84066, null, null, 22712, 68631, 38307, 20051], "af": [30611, 64625, 62826, null, null, 62216, 28214, 92694, 83972], "ml": [923, 1194, 5006, null, null, 11151, 197822, 117013, 6927], "ap": [37.12, 37.53, 35.77, null, null, 40.23, 61.4, 37.3, 42.19]}, "Educated Mess": {"r": [null, null, 70, null, null, null, null, null, null], "g": [null, null, 164523, null, null, null, null, null, null], "so": [null, null, 817, null, null, null, null, null, null], "af": [null, null, 67402, null, null, null, null, null, null], "ml": [null, null, 96304, null, null, null, null, null, null], "ap": [null, null, 73.74, null, null, null, null, null, null]}, "Plouise USA": {"r": [null, null, null, 70, 58, 60, 99, 79, 80], "g": [null, null, null, 148836, 129120, 155892, 97183, 108781, 86670], "so": [null, null, null, 63435, 88776, 104240, 69768, 62297, 67350], "af": [null, null, null, 79486, 32950, 46918, 20527, 37863, 17124], "ml": [null, null, null, 5914, 7392, 4733, 6886, 8619, 2195], "ap": [null, null, null, 62.25, 40.59, 38.99, 31.45, 35.24, 31.47]}, "SKINTIFIC US Store": {"r": [null, null, null, null, 70, 45, 23, 11, 9], "g": [null, null, null, null, 109666, 213707, 429926, 864428, 930076], "so": [null, null, null, null, null, null, 1195, 5945, 4832], "af": [null, null, null, null, 89455, 202371, 415198, 851152, 920866], "ml": [null, null, null, null, 20210, 11335, 13531, 7330, 4378], "ap": [null, null, null, null, 14.11, 11.14, 11.63, 11.1, 8.47]}, "BLONDELIGHT LLC": {"r": [null, null, null, null, null, 70, 55, null, null], "g": [null, null, null, null, null, 125418, 216202, null, null], "so": [null, null, null, null, null, 80129, 116557, null, null], "af": [null, null, null, null, null, 40601, 78552, null, null], "ml": [null, null, null, null, null, 4687, 21092, null, null], "ap": [null, null, null, null, null, 48.31, 39.0, null, null]}, "Danessa Myricks Beauty": {"r": [null, null, null, null, null, null, null, 70, null], "g": [null, null, null, null, null, null, null, 120123, null], "so": [null, null, null, null, null, null, null, 1567, null], "af": [null, null, null, null, null, null, null, 118257, null], "ml": [null, null, null, null, null, null, null, 299, null], "ap": [null, null, null, null, null, null, null, 30.55, null]}, "Eqqualberry": {"r": [null, null, null, null, null, null, null, null, 70], "g": [null, null, null, null, null, null, null, null, 102408], "so": [null, null, null, null, null, null, null, null, 6331], "af": [null, null, null, null, null, null, null, null, 92483], "ml": [null, null, null, null, null, null, null, null, 3594], "ap": [null, null, null, null, null, null, null, null, 34.33]}, "Glow Recipe": {"r": [71, 41, 29, 36, 100, 91, null, null, null], "g": [34133, 199122, 481828, 292175, 82747, 95301, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [29924, 191180, 452788, 264954, 79356, 93452, null, null, null], "ml": [4209, 7942, 29040, 27220, 3390, 1848, null, null, null], "ap": [30.21, 27.35, 38.55, 40.46, 49.94, 56.16, null, null, null]}, "DR.HARRY INSTITUTE": {"r": [null, null, null, null, null, 71, 73, 96, 88], "g": [null, null, null, null, null, 120279, 147001, 92265, 79543], "so": [null, null, null, null, null, 108, null, 2392, 10504], "af": [null, null, null, null, null, 22074, 68149, 49672, 12347], "ml": [null, null, null, null, null, 98096, 78851, 40201, 56692], "ap": [null, null, null, null, null, 28.1, 27.0, 25.57, 25.3]}, "LumiSight": {"r": [72, null, null, null, null, null, null, null, null], "g": [33279, null, null, null, null, null, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [33171, null, null, null, null, null, null, null, null], "ml": [107, null, null, null, null, null, null, null, null], "ap": [9.77, null, null, null, null, null, null, null, null]}, "Fine Club": {"r": [null, 72, null, null, null, null, null, null, null], "g": [null, 101049, null, null, null, null, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [null, 64263, null, null, null, null, null, null, null], "ml": [null, 36786, null, null, null, null, null, null, null], "ap": [null, 6.09, null, null, null, null, null, null, null]}, "CYKLAR": {"r": [null, null, 72, null, null, null, null, null, null], "g": [null, null, 161936, null, null, null, null, null, null], "so": [null, null, 2198, null, null, null, null, null, null], "af": [null, null, 153017, null, null, null, null, null, null], "ml": [null, null, 6720, null, null, null, null, null, null], "ap": [null, null, 45.36, null, null, null, null, null, null]}, "WOODNITY INC": {"r": [null, null, null, 72, 45, 80, null, null, null], "g": [null, null, null, 141078, 190023, 106810, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [null, null, null, 98047, 168494, 37002, null, null, null], "ml": [null, null, null, 43030, 21529, 69808, null, null, null], "ap": [null, null, null, 16.32, 18.18, 18.06, null, null, null]}, "FREE APEX": {"r": [null, null, null, null, null, null, 72, 99, null], "g": [null, null, null, null, null, null, 149022, 88448, null], "so": [null, null, null, null, null, null, null, null, null], "af": [null, null, null, null, null, null, 146974, 82891, null], "ml": [null, null, null, null, null, null, 2048, 5557, null], "ap": [null, null, null, null, null, null, 51.09, 45.36, null]}, "GMEELAN-US.Store": {"r": [73, null, null, null, null, null, null, null, null], "g": [33119, null, null, null, null, null, null, null, null], "so": [108, null, null, null, null, null, null, null, null], "af": [13584, null, null, null, null, null, null, null, null], "ml": [19425, null, null, null, null, null, null, null, null], "ap": [11.97, null, null, null, null, null, null, null, null]}, "Marin Skincare": {"r": [null, null, 73, null, null, null, null, null, null], "g": [null, null, 159973, null, null, null, null, null, null], "so": [null, null, 40998, null, null, null, null, null, null], "af": [null, null, 109909, null, null, null, null, null, null], "ml": [null, null, 9065, null, null, null, null, null, null], "ap": [null, null, 19.74, null, null, null, null, null, null]}, "Fayahut": {"r": [74, null, 83, null, null, null, null, null, null], "g": [32908, null, 152440, null, null, null, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [31899, null, 133628, null, null, null, null, null, null], "ml": [1008, null, 18812, null, null, null, null, null, null], "ap": [36.24, null, 34.8, null, null, null, null, null, null]}, "StyleKorean US": {"r": [null, null, 74, 86, null, 88, 77, 75, 60], "g": [null, null, 159775, 120398, null, 96708, 129156, 117866, 130035], "so": [null, null, 6609, 6272, null, 221, 5483, 12754, 10252], "af": [null, null, 121903, 91981, null, 75958, 105845, 89502, 99067], "ml": [null, null, 31262, 22144, null, 20528, 17828, 15608, 20715], "ap": [null, null, 20.66, 20.83, null, 23.1, 24.31, 23.42, 21.86]}, "fafa star": {"r": [null, null, null, 74, null, null, null, null, null], "g": [null, null, null, 137039, null, null, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [null, null, null, 136319, null, null, null, null, null], "ml": [null, null, null, 719, null, null, null, null, null], "ap": [null, null, null, 7.99, null, null, null, null, null]}, "HAUA": {"r": [null, null, null, null, 74, null, null, null, null], "g": [null, null, null, null, 105732, null, null, null, null], "so": [null, null, null, null, 22, null, null, null, null], "af": [null, null, null, null, 102923, null, null, null, null], "ml": [null, null, null, null, 2787, null, null, null, null], "ap": [null, null, null, null, 25.16, null, null, null, null]}, "NEOVA": {"r": [75, 85, null, null, null, 99, null, null, null], "g": [32757, 85621, null, null, null, 90183, null, null, null], "so": [1761, 15634, null, null, null, 41972, null, null, null], "af": [30951, 69238, null, null, null, 48121, null, null, null], "ml": [44, 748, null, null, null, 90, null, null, null], "ap": [7.55, 7.96, null, null, null, 10.33, null, null, null]}, "Her Fantasy Box": {"r": [null, null, 75, 75, null, 92, null, null, null], "g": [null, null, 159739, 134107, null, 94274, null, null, null], "so": [null, null, 8782, 11550, null, 29814, null, null, null], "af": [null, null, 146992, 122286, null, 64303, null, null, null], "ml": [null, null, 3964, 269, null, 157, null, null, null], "ap": [null, null, 48.61, 47.86, null, 52.2, null, null, null]}, "Cristal Cosmetics": {"r": [null, null, null, null, 75, 89, 96, null, null], "g": [null, null, null, null, 105136, 96178, 99616, null, null], "so": [null, null, null, null, 40804, 29681, 34667, null, null], "af": [null, null, null, null, 61746, 56115, 47592, null, null], "ml": [null, null, null, null, 2585, 10381, 17356, null, null], "ap": [null, null, null, null, 51.66, 45.6, 45.72, null, null]}, "Unineed US": {"r": [null, null, null, null, null, 75, 62, 55, 59], "g": [null, null, null, null, null, 111205, 173756, 168690, 130301], "so": [null, null, null, null, null, 1545, 2664, 282, 20], "af": [null, null, null, null, null, 92623, 145000, 154616, 115326], "ml": [null, null, null, null, null, 17036, 26091, 13791, 14954], "ap": [null, null, null, null, null, 18.64, 19.28, 23.02, 22.42]}, "Queen Tape": {"r": [76, 73, 66, 51, 42, 59, 60, 47, 48], "g": [31441, 99250, 175023, 206270, 201422, 159314, 195543, 204578, 170456], "so": [null, null, null, null, null, 24, null, null, null], "af": [31441, 94848, 153007, 202468, 195779, 148303, 188894, 197302, 167198], "ml": [null, 4401, 22016, 3802, 5643, 10986, 6648, 7276, 3257], "ap": [20.48, 25.66, 24.1, 26.88, 26.43, 27.16, 26.77, 25.78, 23.44]}, "SOME BY MI US": {"r": [null, null, null, null, null, 76, null, null, null], "g": [null, null, null, null, null, 110804, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [null, null, null, null, null, 82530, null, null, null], "ml": [null, null, null, null, null, 28274, null, null, null], "ap": [null, null, null, null, null, 27.39, null, null, null]}, "Tmstoreshop1": {"r": [null, null, null, null, null, null, 76, 93, null], "g": [null, null, null, null, null, null, 130906, 93152, null], "so": [null, null, null, null, null, null, 88208, 45595, null], "af": [null, null, null, null, null, null, 38496, 47249, null], "ml": [null, null, null, null, null, null, 4202, 307, null], "ap": [null, null, null, null, null, null, 37.2, 36.11, null]}, "Laneige US": {"r": [77, 21, 12, 10, 50, 19, 51, 66, 75], "g": [31348, 488080, 1387078, 1040832, 172152, 487576, 233273, 122392, 94938], "so": [264, 902, 1301, 949, null, 1137, 400, 731, null], "af": [27856, 472796, 1369670, 1032323, 162932, 475941, 226547, 117958, 89451], "ml": [3228, 14382, 16106, 7559, 9220, 10497, 6325, 3703, 5487], "ap": [25.06, 23.75, 17.52, 17.67, 24.86, 25.37, 27.57, 27.02, 26.94]}, "Panim skincare": {"r": [null, 77, 88, null, null, null, null, null, null], "g": [null, 94853, 140459, null, null, null, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [null, 75707, 108971, null, null, null, null, null, null], "ml": [null, 19145, 31487, null, null, null, null, null, null], "ap": [null, 18.5, 19.25, null, null, null, null, null, null]}, "Yikou-life": {"r": [null, null, null, null, null, 77, null, null, null], "g": [null, null, null, null, null, 110262, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [null, null, null, null, null, null, null, null, null], "ml": [null, null, null, null, null, 110262, null, null, null], "ap": [null, null, null, null, null, 18.72, null, null, null]}, "Personal Day": {"r": [78, 66, null, null, null, null, null, null, null], "g": [30794, 105980, null, null, null, null, null, null, null], "so": [4928, 22299, null, null, null, null, null, null, null], "af": [21311, 72030, null, null, null, null, null, null, null], "ml": [4554, 11650, null, null, null, null, null, null, null], "ap": [23.4, 26.15, null, null, null, null, null, null, null]}, "Dr.Althea US": {"r": [null, null, null, null, 78, 43, 31, 18, 11], "g": [null, null, null, null, 100457, 225269, 352336, 597829, 727557], "so": [null, null, null, null, 2034, 12926, 36008, 74448, 27349], "af": [null, null, null, null, 83463, 179578, 294625, 512780, 694931], "ml": [null, null, null, null, 14958, 32764, 21702, 10600, 5277], "ap": [null, null, null, null, 27.37, 22.4, 22.63, 24.72, 25.24]}, "Mario Badescu": {"r": [null, null, null, null, null, null, null, null, 78], "g": [null, null, null, null, null, null, null, null, 88971], "so": [null, null, null, null, null, null, null, null, 2071], "af": [null, null, null, null, null, null, null, null, 73517], "ml": [null, null, null, null, null, null, null, null, 13381], "ap": [null, null, null, null, null, null, null, null, 22.85]}, "rhode skin": {"r": [79, null, null, 73, 90, null, 98, 72, 90], "g": [30786, null, null, 139557, 91707, null, 98646, 119784, 79239], "so": [2514, null, null, 4290, 3821, null, 67345, 117171, 79239], "af": [null, null, null, null, null, null, null, null, null], "ml": [28272, null, null, 135267, 87886, null, 31301, 2613, null], "ap": [25.74, null, null, 28.67, 29.34, null, 29.9, 30.43, 27.49]}, "Jill Razor": {"r": [null, 79, null, null, null, null, null, null, null], "g": [null, 93032, null, null, null, null, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [null, 81907, null, null, null, null, null, null, null], "ml": [null, 11125, null, null, null, null, null, null, null], "ap": [null, 13.75, null, null, null, null, null, null, null]}, "LUMAZO": {"r": [null, null, null, 79, 83, null, null, null, null], "g": [null, null, null, 128663, 97143, null, null, null, null], "so": [null, null, null, 1405, 17978, null, null, null, null], "af": [null, null, null, 25042, 15070, null, null, null, null], "ml": [null, null, null, 102215, 64095, null, null, null, null], "ap": [null, null, null, 19.54, 20.05, null, null, null, null]}, "BONA BOOM": {"r": [null, null, null, null, 79, 51, 66, null, null], "g": [null, null, null, null, 100327, 187522, 161309, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [null, null, null, null, 100286, 187100, 161264, null, null], "ml": [null, null, null, null, 41, 422, 44, null, null], "ap": [null, null, null, null, 8.04, 7.87, 7.88, null, null]}, "JoyfulChoice": {"r": [80, null, null, null, null, null, null, null, null], "g": [30365, null, null, null, null, null, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [29315, null, null, null, null, null, null, null, null], "ml": [1050, null, null, null, null, null, null, null, null], "ap": [8.85, null, null, null, null, null, null, null, null]}, "grace and stella": {"r": [null, 80, 57, 81, 65, 68, 89, 88, null], "g": [null, 91847, 195368, 127640, 118721, 130974, 110229, 97014, null], "so": [null, null, null, null, null, 74, 34, null, null], "af": [null, 90664, 188422, 124227, 115144, 126279, 106455, 95509, null], "ml": [null, 1182, 6946, 3412, 3576, 4620, 3739, 1504, null], "ap": [null, 13.77, 13.2, 17.65, 15.92, 13.12, 13.1, 13.0, null]}, "The Outset": {"r": [null, null, 80, null, null, null, null, null, null], "g": [null, null, 155416, null, null, null, null, null, null], "so": [null, null, 62637, null, null, null, null, null, null], "af": [null, null, 84122, null, null, null, null, null, null], "ml": [null, null, 8656, null, null, null, null, null, null], "ap": [null, null, 27.4, null, null, null, null, null, null]}, "4 IN LOOK GLOBAL": {"r": [81, 88, null, null, null, null, null, null, null], "g": [30318, 81491, null, null, null, null, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [28577, 77624, null, null, null, null, null, null, null], "ml": [1740, 3867, null, null, null, null, null, null, null], "ap": [16.9, 17.0, null, null, null, null, null, null, null]}, "The Heritage Store": {"r": [null, 81, 79, 47, 46, 54, 71, null, null], "g": [null, 91424, 155621, 224002, 188283, 169522, 150348, null, null], "so": [null, 21, 21, 33, 158, 57, 2615, null, null], "af": [null, 88820, 150390, 214378, 180850, 159356, 140010, null, null], "ml": [null, 2582, 5209, 9590, 7275, 10108, 7722, null, null], "ap": [null, 13.53, 11.71, 13.41, 11.5, 14.41, 15.46, null, null]}, "Makari Shop Online": {"r": [null, null, null, null, null, null, null, 81, 84], "g": [null, null, null, null, null, null, null, 102514, 84350], "so": [null, null, null, null, null, null, null, 95466, 73831], "af": [null, null, null, null, null, null, null, 6469, 4973], "ml": [null, null, null, null, null, null, null, 579, 5545], "ap": [null, null, null, null, null, null, null, 34.3, 36.67]}, "Ole Henriksen": {"r": [82, 78, 47, 63, null, 47, 32, 80, 66], "g": [30276, 93266, 226104, 166625, null, 204689, 323038, 104175, 115024], "so": [3865, 3017, 9450, 3686, null, 3923, 23533, 798, 27755], "af": [25763, 73228, 204609, 149358, null, 197328, 287292, 101144, 82728], "ml": [647, 17020, 12044, 13580, null, 3437, 12212, 2232, 4540], "ap": [40.05, 40.62, 43.08, 45.88, null, 39.44, 37.62, 44.67, 43.74]}, "IntoxicatedCosmetics": {"r": [null, null, null, null, null, null, null, 82, null], "g": [null, null, null, null, null, null, null, 102435, null], "so": [null, null, null, null, null, null, null, 5059, null], "af": [null, null, null, null, null, null, null, 39528, null], "ml": [null, null, null, null, null, null, null, 57847, null], "ap": [null, null, null, null, null, null, null, 87.4, null]}, "Dr. Mopick": {"r": [83, null, 90, null, 89, null, null, null, null], "g": [29828, null, 130057, null, 93636, null, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [12444, null, 113258, null, 84505, null, null, null, null], "ml": [17383, null, 16798, null, 9130, null, null, null, null], "ap": [20.21, null, 20.85, null, 20.34, null, null, null, null]}, "Asterwood Beauty": {"r": [null, 83, 65, 45, 31, 40, 41, 43, 41], "g": [null, 87436, 175274, 228602, 278658, 227998, 287815, 251488, 202852], "so": [null, 380, 1301, 8348, 12213, 4954, 17049, 15715, 24923], "af": [null, 84135, 169543, 217787, 259507, 216659, 269379, 235094, 175607], "ml": [null, 2920, 4430, 2466, 6937, 6383, 1386, 679, 2321], "ap": [null, 15.35, 16.76, 18.12, 17.74, 20.57, 21.55, 21.34, 21.12]}, "LUMAZO-US": {"r": [null, null, null, 83, null, null, null, null, null], "g": [null, null, null, 123616, null, null, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [null, null, null, 7796, null, null, null, null, null], "ml": [null, null, null, 115819, null, null, null, null, null], "ap": [null, null, null, 18.98, null, null, null, null, null]}, "Rael": {"r": [null, null, null, null, null, 83, 97, null, null], "g": [null, null, null, null, null, 104997, 99367, null, null], "so": [null, null, null, null, null, 52, 2453, null, null], "af": [null, null, null, null, null, 104178, 96407, null, null], "ml": [null, null, null, null, null, 766, 506, null, null], "ap": [null, null, null, null, null, 32.03, 33.13, null, null]}, "Qinpeng67y": {"r": [null, null, null, null, null, null, null, null, 83], "g": [null, null, null, null, null, null, null, null, 84693], "so": [null, null, null, null, null, null, null, null, 62294], "af": [null, null, null, null, null, null, null, null, 22399], "ml": [null, null, null, null, null, null, null, null, null], "ap": [null, null, null, null, null, null, null, null, 11.54]}, "Arencia": {"r": [84, 93, 94, 82, 56, 84, 69, 39, 37], "g": [28414, 73430, 123822, 125786, 139576, 101770, 154648, 292910, 223269], "so": [1802, 4412, 7663, 10100, 10779, 10528, 21059, 29201, 24312], "af": [24698, 64579, 107259, 107901, 120007, 83918, 126677, 257445, 194700], "ml": [1914, 4438, 8899, 7785, 8789, 7323, 6911, 6262, 4257], "ap": [21.98, 25.16, 31.04, 32.37, 30.77, 29.74, 29.57, 28.17, 25.64]}, "rikilovesriki": {"r": [null, 84, null, null, null, null, null, null, null], "g": [null, 85689, null, null, null, null, null, null, null], "so": [null, 26698, null, null, null, null, null, null, null], "af": [null, 33998, null, null, null, null, null, null, null], "ml": [null, 24992, null, null, null, null, null, null, null], "ap": [null, 115.17, null, null, null, null, null, null, null]}, "oganacell US": {"r": [null, null, null, null, null, null, null, 84, null], "g": [null, null, null, null, null, null, null, 100417, null], "so": [null, null, null, null, null, null, null, null, null], "af": [null, null, null, null, null, null, null, 96989, null], "ml": [null, null, null, null, null, null, null, 3428, null], "ap": [null, null, null, null, null, null, null, 19.43, null]}, "Skin Deva": {"r": [85, 61, 95, 88, 76, null, null, null, null], "g": [28180, 110103, 122685, 115907, 102117, null, null, null, null], "so": [602, 4816, 3269, 579, 414, null, null, null, null], "af": [25868, 94968, 99939, 96127, 89014, null, null, null, null], "ml": [1709, 10318, 19476, 19199, 12688, null, null, null, null], "ap": [21.41, 24.66, 24.47, 27.05, 25.9, null, null, null, null]}, "Lucky King JJ": {"r": [null, null, null, null, null, 85, null, null, null], "g": [null, null, null, null, null, 99137, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [null, null, null, null, null, 97125, null, null, null], "ml": [null, null, null, null, null, 2011, null, null, null], "ap": [null, null, null, null, null, 7.29, null, null, null]}, "Kohana Health": {"r": [null, null, null, null, null, null, null, null, 85], "g": [null, null, null, null, null, null, null, null, 83477], "so": [null, null, null, null, null, null, null, null, null], "af": [null, null, null, null, null, null, null, null, 83399], "ml": [null, null, null, null, null, null, null, null, 78], "ap": [null, null, null, null, null, null, null, null, 25.89]}, "SUNTIRC WWW": {"r": [86, null, null, null, null, null, null, null, null], "g": [27572, null, null, null, null, null, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [27103, null, null, null, null, null, null, null, null], "ml": [469, null, null, null, null, null, null, null, null], "ap": [6.55, null, null, null, null, null, null, null, null]}, "e.l.f. Cosmetics": {"r": [null, 86, 37, 26, 44, 26, 16, 37, 72], "g": [null, 85575, 374601, 446563, 192793, 311999, 677009, 298158, 97726], "so": [null, 23399, 56388, 36890, 10438, 14640, 16153, 15072, 3381], "af": [null, 57058, 296173, 387081, 173720, 290202, 610352, 276621, 91382], "ml": [null, 5118, 22038, 22592, 8634, 7156, 50503, 6465, 2963], "ap": [null, 11.03, 12.73, 14.17, 11.74, 11.28, 10.36, 10.53, 10.73]}, "Evereden": {"r": [null, null, 86, 76, null, null, null, null, null], "g": [null, null, 143351, 131696, null, null, null, null, null], "so": [null, null, 1504, 578, null, null, null, null, null], "af": [null, null, 130655, 125640, null, null, null, null, null], "ml": [null, null, 11192, 5476, null, null, null, null, null], "ap": [null, null, 38.3, 49.09, null, null, null, null, null]}, "Siret Cosmetics": {"r": [null, null, null, null, 86, 57, 48, 61, 65], "g": [null, null, null, null, 94437, 159703, 240266, 150227, 116624], "so": [null, null, null, null, 583, 57741, 163626, 98755, 78861], "af": [null, null, null, null, 90068, 97134, 54876, 38339, 23439], "ml": [null, null, null, null, 3786, 4828, 21762, 13132, 14324], "ap": [null, null, null, null, 59.92, 47.57, 41.82, 46.12, 44.77]}, "CANVAS BEAUTY BRAND": {"r": [87, null, null, null, 14, 31, null, 50, 53], "g": [27313, null, null, null, 769396, 270456, null, 197571, 142753], "so": [null, null, null, null, 380499, 171806, null, 58325, 79366], "af": [18793, null, null, null, 9055, 5787, null, 11413, 6732], "ml": [8520, null, null, null, 379842, 92863, null, 127832, 56655], "ap": [48.6, null, null, null, 62.29, 37.4, null, 78.59, 38.98]}, "Laura Geller Beauty": {"r": [null, 87, null, 23, 15, 38, 45, 67, 73], "g": [null, 82910, null, 484893, 688137, 236985, 271007, 122034, 97668], "so": [null, 3938, null, 8504, 15319, 11237, 13650, 29899, 16332], "af": [null, 70084, null, 470391, 665642, 221385, 250042, 88292, 78590], "ml": [null, 8887, null, 5997, 7175, 4362, 7315, 3842, 2745], "ap": [null, 27.96, null, 34.05, 27.6, 38.0, 41.79, 33.15, 30.7]}, "ChapStick.US": {"r": [null, null, 87, 52, null, null, null, null, null], "g": [null, null, 141978, 202917, null, null, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [null, null, 132592, 181439, null, null, null, null, null], "ml": [null, null, 9385, 21477, null, null, null, null, null], "ap": [null, null, 20.47, 21.36, null, null, null, null, null]}, "MAËLYS": {"r": [null, null, null, null, 87, 78, null, null, null], "g": [null, null, null, null, 94194, 108510, null, null, null], "so": [null, null, null, null, 18161, 20043, null, null, null], "af": [null, null, null, null, 55499, 70228, null, null, null], "ml": [null, null, null, null, 20532, 18237, null, null, null], "ap": [null, null, null, null, 48.3, 49.84, null, null, null]}, "JEU'DEMEURE US Official": {"r": [88, 47, 42, null, null, null, null, null, null], "g": [27254, 170417, 307036, null, null, null, null, null, null], "so": [3492, 22469, 18065, null, null, null, null, null, null], "af": [23255, 146310, 280223, null, null, null, null, null, null], "ml": [506, 1636, 8746, null, null, null, null, null, null], "ap": [69.0, 67.23, 66.95, null, null, null, null, null, null]}, "Abib.US.Store": {"r": [null, null, null, null, null, null, 88, null, 91], "g": [null, null, null, null, null, null, 111236, null, 79157], "so": [null, null, null, null, null, null, 107, null, 1163], "af": [null, null, null, null, null, null, 102764, null, 75351], "ml": [null, null, null, null, null, null, 8365, null, 2643], "ap": [null, null, null, null, null, null, 18.96, null, 18.33]}, "USLCQNEAWR": {"r": [89, null, null, null, null, null, null, null, null], "g": [27253, null, null, null, null, null, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [null, null, null, null, null, null, null, null, null], "ml": [27253, null, null, null, null, null, null, null, null], "ap": [12.98, null, null, null, null, null, null, null, null]}, "ICOTLE": {"r": [null, 89, null, null, null, null, null, null, null], "g": [null, 80514, null, null, null, null, null, null, null], "so": [null, 6, null, null, null, null, null, null, null], "af": [null, 79957, null, null, null, null, null, null, null], "ml": [null, 550, null, null, null, null, null, null, null], "ap": [null, 6.61, null, null, null, null, null, null, null]}, "Torriden US": {"r": [null, null, 89, 92, 55, 33, 34, 34, 42], "g": [null, null, 132731, 112414, 148187, 251583, 315372, 312371, 197883], "so": [null, null, 1265, 3041, 23439, 9427, 12300, 9692, 7154], "af": [null, null, 112968, 100437, 117887, 231658, 291213, 294023, 185113], "ml": [null, null, 18498, 8936, 6860, 10497, 11857, 8655, 5615], "ap": [null, null, 25.33, 27.15, 30.08, 31.73, 31.14, 31.24, 28.01]}, "The INKEY List": {"r": [null, null, null, 89, null, null, null, null, null], "g": [null, null, null, 115901, null, null, null, null, null], "so": [null, null, null, 3283, null, null, null, null, null], "af": [null, null, null, 93326, null, null, null, null, null], "ml": [null, null, null, 19290, null, null, null, null, null], "ap": [null, null, null, 14.68, null, null, null, null, null]}, "manyo US": {"r": [null, null, null, null, null, null, null, null, 89], "g": [null, null, null, null, null, null, null, null, 79354], "so": [null, null, null, null, null, null, null, null, 107], "af": [null, null, null, null, null, null, null, null, 77608], "ml": [null, null, null, null, null, null, null, null, 1638], "ap": [null, null, null, null, null, null, null, null, 15.83]}, "Madeca Derma": {"r": [90, null, null, 99, null, null, 82, 71, null], "g": [27224, null, null, 100655, null, null, 119284, 119905, null], "so": [null, null, null, 10592, null, null, 15490, 11152, null], "af": [19317, null, null, 54459, null, null, 93566, 99060, null], "ml": [7907, null, null, 35603, null, null, 10226, 9692, null], "ap": [45.68, null, null, 52.4, null, null, 48.47, 55.43, null]}, "IN YOUR FACE SKINCARE": {"r": [null, 90, 92, null, null, null, null, null, null], "g": [null, 78795, 125024, null, null, null, null, null, null], "so": [null, 16607, 9447, null, null, null, null, null, null], "af": [null, 24204, 33509, null, null, null, null, null, null], "ml": [null, 37983, 82066, null, null, null, null, null, null], "ap": [null, 90.78, 106.4, null, null, null, null, null, null]}, "StyleKorean USᅟᅠ": {"r": [null, null, null, null, null, null, 90, null, 81], "g": [null, null, null, null, null, null, 107219, null, 86431], "so": [null, null, null, null, null, null, null, null, null], "af": [null, null, null, null, null, null, 98960, null, 86118], "ml": [null, null, null, null, null, null, 8258, null, 313], "ap": [null, null, null, null, null, null, 20.19, null, 16.89]}, "Base Laboratories": {"r": [91, 71, 99, null, null, null, 93, 85, 74], "g": [27136, 101958, 112369, null, null, null, 102180, 100329, 96775], "so": [null, null, null, null, null, null, 4961, 2706, 3593], "af": [26598, 100653, 111098, null, null, null, 95330, 96931, 92175], "ml": [538, 1304, 1271, null, null, null, 1888, 691, 1006], "ap": [14.24, 15.86, 16.78, null, null, null, 16.45, 14.63, 14.91]}, "KraveBeauty": {"r": [null, 91, null, null, null, null, null, null, null], "g": [null, 76929, null, null, null, null, null, null, null], "so": [null, 34592, null, null, null, null, null, null, null], "af": [null, 35916, null, null, null, null, null, null, null], "ml": [null, 6420, null, null, null, null, null, null, null], "ap": [null, 29.97, null, null, null, null, null, null, null]}, "Clarins USA": {"r": [null, null, 91, null, null, 87, null, null, null], "g": [null, null, 125393, null, null, 97521, null, null, null], "so": [null, null, 12441, null, null, 300, null, null, null], "af": [null, null, 88488, null, null, 88752, null, null, null], "ml": [null, null, 24463, null, null, 8469, null, null, null], "ap": [null, null, 74.29, null, null, 73.82, null, null, null]}, "d'Alba Piedmont": {"r": [null, null, null, null, 91, 35, 36, 35, 35], "g": [null, null, null, null, 90806, 239950, 297759, 308622, 227477], "so": [null, null, null, null, null, null, 9116, 52003, 35639], "af": [null, null, null, null, 85865, 233747, 284467, 248705, 183382], "ml": [null, null, null, null, 4940, 6202, 4174, 7913, 8456], "ap": [null, null, null, null, 28.22, 28.47, 28.05, 29.04, 23.84]}, "MIAZYA BEAUTY": {"r": [null, null, null, null, null, null, null, 91, 82], "g": [null, null, null, null, null, null, null, 96171, 86179], "so": [null, null, null, null, null, null, null, 66070, 70429], "af": [null, null, null, null, null, null, null, 23584, 8740], "ml": [null, null, null, null, null, null, null, 6516, 7009], "ap": [null, null, null, null, null, null, null, 24.45, 18.9]}, "Beauty Station US": {"r": [92, null, null, null, null, null, null, null, null], "g": [27049, null, null, null, null, null, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [26830, null, null, null, null, null, null, null, null], "ml": [219, null, null, null, null, null, null, null, null], "ap": [12.4, null, null, null, null, null, null, null, null]}, "Beauty-Glo": {"r": [null, null, null, null, 92, null, null, null, null], "g": [null, null, null, null, 90555, null, null, null, null], "so": [null, null, null, null, 89501, null, null, null, null], "af": [null, null, null, null, 159, null, null, null, null], "ml": [null, null, null, null, 894, null, null, null, null], "ap": [null, null, null, null, 107.04, null, null, null, null]}, "BANISH": {"r": [93, null, null, null, null, null, null, null, null], "g": [26987, null, null, null, null, null, null, null, null], "so": [17632, null, null, null, null, null, null, null, null], "af": [3438, null, null, null, null, null, null, null, null], "ml": [5916, null, null, null, null, null, null, null, null], "ap": [95.02, null, null, null, null, null, null, null, null]}, "Pure Daily Care": {"r": [null, null, null, 93, null, null, null, null, null], "g": [null, null, null, 108859, null, null, null, null, null], "so": [null, null, null, 1164, null, null, null, null, null], "af": [null, null, null, 91364, null, null, null, null, null], "ml": [null, null, null, 16330, null, null, null, null, null], "ap": [null, null, null, 25.67, null, null, null, null, null]}, "Weee Asian Supermarket": {"r": [94, 100, null, null, null, null, null, 97, null], "g": [26779, 70317, null, null, null, null, null, 91248, null], "so": [1295, 5864, null, null, null, null, null, 1098, null], "af": [24207, 60859, null, null, null, null, null, 87538, null], "ml": [1277, 3594, null, null, null, null, null, 2611, null], "ap": [18.89, 18.41, null, null, null, null, null, 17.79, null]}, "belif USA": {"r": [null, 94, 78, 91, 96, null, null, null, null], "g": [null, 72865, 156687, 112670, 86285, null, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [null, 70984, 142222, 100816, 82143, null, null, null, null], "ml": [null, 1881, 14464, 11854, 4141, null, null, null, null], "ap": [null, 37.12, 28.09, 28.87, 32.97, null, null, null, null]}, "Natural Workshop": {"r": [null, null, null, 94, null, null, null, null, null], "g": [null, null, null, 108395, null, null, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [null, null, null, 106827, null, null, null, null, null], "ml": [null, null, null, 1568, null, null, null, null, null], "ap": [null, null, null, 16.88, null, null, null, null, null]}, "47 Skin USA": {"r": [null, null, null, null, null, null, 94, null, null], "g": [null, null, null, null, null, null, 101742, null, null], "so": [null, null, null, null, null, null, 15385, null, null], "af": [null, null, null, null, null, null, 85167, null, null], "ml": [null, null, null, null, null, null, 1190, null, null], "ap": [null, null, null, null, null, null, 19.9, null, null]}, "Ragkun Brand store": {"r": [null, null, null, null, null, null, null, 94, 96], "g": [null, null, null, null, null, null, null, 92770, 76198], "so": [null, null, null, null, null, null, null, 84, null], "af": [null, null, null, null, null, null, null, 90787, 75160], "ml": [null, null, null, null, null, null, null, 1897, 1037], "ap": [null, null, null, null, null, null, null, 16.39, 15.64]}, "TOCOBO US": {"r": [95, null, null, null, null, null, null, null, null], "g": [26640, null, null, null, null, null, null, null, null], "so": [1245, null, null, null, null, null, null, null, null], "af": [17877, null, null, null, null, null, null, null, null], "ml": [7517, null, null, null, null, null, null, null, null], "ap": [21.04, null, null, null, null, null, null, null, null]}, "Nurse Jamie": {"r": [null, 95, null, null, null, null, null, null, null], "g": [null, 72732, null, null, null, null, null, null, null], "so": [null, 10161, null, null, null, null, null, null, null], "af": [null, 51863, null, null, null, null, null, null, null], "ml": [null, 10706, null, null, null, null, null, null, null], "ap": [null, 79.23, null, null, null, null, null, null, null]}, "Naturium": {"r": [null, null, null, null, null, null, 95, 87, 86], "g": [null, null, null, null, null, null, 100438, 99152, 82881], "so": [null, null, null, null, null, null, 178, 107, 10], "af": [null, null, null, null, null, null, 80010, 84373, 72180], "ml": [null, null, null, null, null, null, 20249, 14671, 10691], "ap": [null, null, null, null, null, null, 29.32, 30.11, 25.34]}, "Embryolisse": {"r": [96, 82, 81, 98, 82, null, null, null, null], "g": [26377, 89915, 154010, 102235, 97529, null, null, null, null], "so": [146, 437, 1129, 363, 254, null, null, null, null], "af": [25339, 86763, 145878, 95860, 91065, null, null, null, null], "ml": [891, 2714, 7001, 6010, 6208, null, null, null, null], "ap": [22.72, 27.76, 30.25, 33.6, 33.58, null, null, null, null]}, "Ashan shop": {"r": [97, null, null, null, null, null, null, null, null], "g": [26377, null, null, null, null, null, null, null, null], "so": [79, null, null, null, null, null, null, null, null], "af": [26297, null, null, null, null, null, null, null, null], "ml": [null, null, null, null, null, null, null, null, null], "ap": [9.98, null, null, null, null, null, null, null, null]}, "iHerb": {"r": [null, 97, null, null, null, null, null, null, null], "g": [null, 72111, null, null, null, null, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [null, 40006, null, null, null, null, null, null, null], "ml": [null, 32104, null, null, null, null, null, null, null], "ap": [null, 17.06, null, null, null, null, null, null, null]}, "Aquaphor": {"r": [null, null, 97, null, null, null, null, null, null], "g": [null, null, 115655, null, null, null, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [null, null, 104317, null, null, null, null, null, null], "ml": [null, null, 11337, null, null, null, null, null, null], "ap": [null, null, 17.3, null, null, null, null, null, null]}, "Olay Skin Care": {"r": [null, null, null, 97, null, null, null, null, 77], "g": [null, null, null, 102561, null, null, null, null, 89388], "so": [null, null, null, null, null, null, null, null, 112], "af": [null, null, null, 43677, null, null, null, null, 86502], "ml": [null, null, null, 58884, null, null, null, null, 2772], "ap": [null, null, null, 25.11, null, null, null, null, 27.04]}, "IUNIK": {"r": [null, null, null, null, null, null, null, null, 97], "g": [null, null, null, null, null, null, null, null, 74854], "so": [null, null, null, null, null, null, null, null, null], "af": [null, null, null, null, null, null, null, null, 67499], "ml": [null, null, null, null, null, null, null, null, 7355], "ap": [null, null, null, null, null, null, null, null, 21.57]}, "Topicals": {"r": [98, 64, 61, 96, 94, 73, 63, 63, 56], "g": [26336, 108594, 189982, 104393, 87151, 117655, 166288, 140186, 136972], "so": [97, 27470, 8943, 4488, 746, 481, 649, 635, 50], "af": [25803, 77622, 174024, 95206, 76437, 106775, 161076, 136408, 134434], "ml": [436, 3500, 7014, 4699, 9967, 10398, 4561, 3142, 2487], "ap": [25.69, 26.27, 23.03, 25.18, 26.68, 26.13, 25.18, 26.82, 26.09]}, "Vamy family-1": {"r": [null, null, null, null, 98, null, null, null, null], "g": [null, null, null, null, 83944, null, null, null, null], "so": [null, null, null, null, 6506, null, null, null, null], "af": [null, null, null, null, 77354, null, null, null, null], "ml": [null, null, null, null, 83, null, null, null, null], "ap": [null, null, null, null, 16.71, null, null, null, null]}, "Dr.Reju-All Store": {"r": [null, null, null, null, null, 98, 80, 65, null], "g": [null, null, null, null, null, 90311, 122872, 134498, null], "so": [null, null, null, null, null, 981, 2347, 9226, null], "af": [null, null, null, null, null, 86491, 117691, 119631, null], "ml": [null, null, null, null, null, 2838, 2832, 5640, null], "ap": [null, null, null, null, null, 25.25, 19.63, 21.07, null]}, "Firstfly": {"r": [null, null, null, null, null, null, null, null, 98], "g": [null, null, null, null, null, null, null, null, 74674], "so": [null, null, null, null, null, null, null, null, null], "af": [null, null, null, null, null, null, null, null, 74468], "ml": [null, null, null, null, null, null, null, null, 205], "ap": [null, null, null, null, null, null, null, null, 10.47]}, "Murad Skincare": {"r": [99, null, 68, null, null, null, null, null, null], "g": [25820, null, 167061, null, null, null, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [18835, null, 137066, null, null, null, null, null, null], "ml": [6985, null, 29995, null, null, null, null, null, null], "ap": [46.19, null, 60.46, null, null, null, null, null, null]}, "DR.HARRY LAB": {"r": [null, 99, null, null, null, null, 79, 89, 92], "g": [null, 71748, null, null, null, null, 124321, 96970, 78556], "so": [null, null, null, null, null, null, null, 1234, 9057], "af": [null, null, null, null, null, null, 88018, 77808, 55467], "ml": [null, 71748, null, null, null, null, 36302, 17927, 14031], "ap": [null, 25.25, null, null, null, null, 26.51, 25.36, 26.12]}, "GIANTWATERMELON": {"r": [null, null, null, null, 99, null, null, null, null], "g": [null, null, null, null, 82758, null, null, null, null], "so": [null, null, null, null, 598, null, null, null, null], "af": [null, null, null, null, 11524, null, null, null, null], "ml": [null, null, null, null, 70636, null, null, null, null], "ap": [null, null, null, null, 31.85, null, null, null, null]}, "JLO Beauty": {"r": [null, null, null, null, null, null, null, null, 99], "g": [null, null, null, null, null, null, null, null, 74528], "so": [null, null, null, null, null, null, null, null, 2184], "af": [null, null, null, null, null, null, null, null, 69281], "ml": [null, null, null, null, null, null, null, null, 3062], "ap": [null, null, null, null, null, null, null, null, 38.48]}, "Lopeie.Outlet": {"r": [100, 43, 33, 38, 61, null, null, null, null], "g": [25733, 195200, 405383, 280748, 126908, null, null, null, null], "so": [null, null, null, null, null, null, null, null, null], "af": [25712, 195137, 404522, 279967, 126581, null, null, null, null], "ml": [20, 62, 861, 781, 326, null, null, null, null], "ap": [7.55, 8.82, 9.65, 11.75, 10.97, null, null, null, null]}, "BALMSHOT Lip Balm": {"r": [null, null, null, 100, null, null, null, null, null], "g": [null, null, null, 100554, null, null, null, null, null], "so": [null, null, null, 5432, null, null, null, null, null], "af": [null, null, null, 93005, null, null, null, null, null], "ml": [null, null, null, 2117, null, null, null, null, null], "ap": [null, null, null, 14.55, null, null, null, null, null]}, "Jones Road Beauty": {"r": [null, null, null, null, null, null, 100, null, 100], "g": [null, null, null, null, null, null, 93427, null, 73351], "so": [null, null, null, null, null, null, 1908, null, 935], "af": [null, null, null, null, null, null, 89250, null, 71872], "ml": [null, null, null, null, null, null, 2269, null, 543], "ap": [null, null, null, null, null, null, 23.43, null, 35.27]}};
+const TOP_N  = 100;
+
+const PAL = (() => {
+  const base = [
+    '#4e9af1','#f4845f','#5cb85c','#c084fc','#fbbf24','#34d399','#fb7185','#60a5fa',
+    '#a78bfa','#f97316','#10b981','#e879f9','#facc15','#38bdf8','#f43f5e','#84cc16',
+    '#818cf8','#fb923c','#2dd4bf','#c026d3','#eab308','#06b6d4','#ec4899','#22c55e',
+    '#8b5cf6','#f59e0b','#0ea5e9','#ef4444','#14b8a6','#d946ef','#a3e635','#7c3aed',
+    '#f87171','#4ade80','#fb923c','#e11d48','#0891b2','#65a30d','#9333ea','#b45309',
+    '#0284c7','#dc2626','#16a34a','#7c3aed','#d97706','#0369a1','#b91c1c','#15803d',
+    '#6d28d9','#92400e','#075985','#991b1b','#166534','#5b21b6','#78350f','#0c4a6e',
+    '#7f1d1d','#14532d','#4c1d95','#451a03',
+  ];
+  const out = [];
+  for (let i = 0; i < Math.max(BRANDS.length, 60); i++) out.push(base[i % base.length]);
+  return out;
+})();
+
+const D = window.matchMedia('(prefers-color-scheme: dark)').matches;
+const C = {
+  text  : getComputedStyle(document.documentElement).getPropertyValue('--text').trim(),
+  texts : getComputedStyle(document.documentElement).getPropertyValue('--texts').trim(),
+  grid  : D ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)',
+  up    : '#1D9E75', dn: '#D85A30',
+};
+
+/* ── 메트릭 카드 ── */
+const mrow = document.getElementById('mrow');
+ML.forEach((lbl, i) => {
+  const v    = TOTALS[i];
+  const prev = i > 0 ? TOTALS[i - 1] : null;
+  const pct  = prev ? ((v - prev) / prev * 100).toFixed(1) : null;
+  const chg  = pct === null
+    ? '<div class="mc-chg" style="color:var(--textt)">첫 번째 달</div>'
+    : +pct >= 0
+      ? `<div class="mc-chg up">▲ ${pct}% 전월비</div>`
+      : `<div class="mc-chg dn">▼ ${Math.abs(pct)}% 전월비</div>`;
+  const card = document.createElement('div');
+  card.className = 'mc' + (i === ML.length - 1 ? ' active' : '');
+  card.title = `${lbl} — 클릭하면 이 달로 차트가 이동합니다`;
+  card.innerHTML = `<div class="mc-lbl">${lbl}</div>
+    <div class="mc-val">$${(v / 1e6).toFixed(2)}M</div>${chg}`;
+  card.onclick = () => {
+    stopPlay(); frame = i; prog = 0; draw();
+    document.querySelectorAll('.mc').forEach((c, j) => c.classList.toggle('active', j === i));
+  };
+  mrow.appendChild(card);
+});
+
+/* ── Revenue 바 차트 ── */
+new Chart(document.getElementById('gmvC'), {
+  type: 'bar',
+  data: {
+    labels: ML,
+    datasets: [{
+      data: TOTALS,
+      backgroundColor: PAL.slice(0, ML.length).map(c => c + 'cc'),
+      borderColor:     PAL.slice(0, ML.length),
+      borderWidth: 1.5, borderRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: {
+        label: ctx => `  Top 100 합산: $${(ctx.parsed.y / 1e6).toFixed(2)}M`
+      } }
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { color: C.texts, font: { size: 11 } } },
+      y: { grid: { color: C.grid },   ticks: { color: C.texts, font: { size: 10 },
+            callback: v => `$${(v / 1e6).toFixed(0)}M` } }
+    }
+  }
+});
+
+/* ── 범프 차트 ── */
+const bc = document.getElementById('bc');
+const tt = document.getElementById('tt');
+let bctx, W, H;
+const NM    = ML.length;
+const MAX_R = TOP_N;
+const PAD   = { l: 52, r: 190, t: 38, b: 22 };
+
+let frame = NM - 1, prog = 0, playing = false, animMs = 750;
+let rafId = null, lastTs = null;
+let muted = new Set(), hl = null;
+
+function updateMutedCount() {
+  document.getElementById('brandCount').textContent = BRANDS.length;
+  document.getElementById('mutedCount').textContent = muted.size;
+}
+function initBC() {
+  const dpr  = window.devicePixelRatio || 1;
+  const rect = bc.parentElement.getBoundingClientRect();
+  W = rect.width;
+  H = Math.max(900, MAX_R * 11 + PAD.t + PAD.b);
+  bc.style.height = H + 'px';
+  bc.width  = W * dpr; bc.height = H * dpr;
+  bctx = bc.getContext('2d'); bctx.scale(dpr, dpr);
+}
+function rankY(r) { return PAD.t + ((Math.min(r, MAX_R) - 1) / (MAX_R - 1)) * (H - PAD.t - PAD.b); }
+function mthX(i)  { return PAD.l + (i / Math.max(NM - 1, 1)) * (W - PAD.l - PAD.r); }
+function getRank(bi, mi, p) {
+  const b = BRANDS[bi], r1 = RAW[b].r[mi];
+  if (mi >= NM - 1 || p === 0 || r1 === null) return r1;
+  const r2 = RAW[b].r[Math.min(mi + 1, NM - 1)];
+  return r2 === null ? r1 : r1 + (r2 - r1) * p;
+}
+
+function draw() {
+  if (!bctx) return;
+  bctx.clearRect(0, 0, W, H);
+
+  [1,5,10,20,30,40,50,60,70,80,90,100].filter(v => v <= TOP_N).forEach(r => {
+    const y = rankY(r);
+    bctx.strokeStyle = C.grid; bctx.lineWidth = 0.5;
+    bctx.beginPath(); bctx.moveTo(PAD.l - 4, y); bctx.lineTo(W - PAD.r + 4, y); bctx.stroke();
+    bctx.fillStyle = C.texts; bctx.font = '10px -apple-system,sans-serif'; bctx.textAlign = 'right';
+    bctx.fillText('#' + r, PAD.l - 8, y + 3.5);
+  });
+
+  for (let mi = 0; mi < NM; mi++) {
+    const x = mthX(mi);
+    bctx.strokeStyle = C.grid; bctx.lineWidth = 0.5;
+    bctx.beginPath(); bctx.moveTo(x, PAD.t - 14); bctx.lineTo(x, H - PAD.b + 8); bctx.stroke();
+    bctx.fillStyle = mi === frame ? C.text : C.texts;
+    bctx.font = (mi === frame ? '600 12px' : '11px') + ' -apple-system,sans-serif';
+    bctx.textAlign = 'center'; bctx.fillText(ML[mi], x, PAD.t - 16);
+  }
+
+  BRANDS.forEach((b, bi) => {
+    if (muted.has(b)) return;
+    const col = PAL[bi % PAL.length], isHL = hl === b;
+    const alpha = hl ? (isHL ? 1 : 0.07) : 0.72;
+    const lw    = isHL ? 2.5 : (hl ? 0.5 : 1.4);
+    bctx.globalAlpha = alpha;
+    bctx.strokeStyle = col; bctx.lineWidth = lw; bctx.lineCap = 'round'; bctx.lineJoin = 'round';
+    bctx.beginPath(); let started = false;
+    for (let mi = 0; mi <= frame; mi++) {
+      const r = mi < frame ? RAW[b].r[mi] : getRank(bi, frame, prog);
+      if (r === null) { started = false; continue; }
+      const x = mthX(mi), y = rankY(r);
+      if (!started) { bctx.moveTo(x, y); started = true; } else bctx.lineTo(x, y);
+    }
+    bctx.stroke();
+    for (let mi = 0; mi <= frame; mi++) {
+      const r = mi < frame ? RAW[b].r[mi] : getRank(bi, frame, prog);
+      if (r === null) continue;
+      const x = mthX(mi), y = rankY(r);
+      const dr = isHL ? 5 : (mi === frame ? 3.5 : 2.5);
+      bctx.beginPath(); bctx.arc(x, y, dr, 0, Math.PI * 2);
+      bctx.fillStyle = col; bctx.fill();
+      if (isHL || mi === frame) { bctx.strokeStyle = D ? '#1e1e1c' : '#fff'; bctx.lineWidth = 1.2; bctx.stroke(); }
+    }
+    bctx.globalAlpha = 1;
+  });
+
+  const pts = BRANDS.map((b, bi) => {
+    if (muted.has(b)) return null;
+    const r = getRank(bi, frame, prog);
+    return r === null ? null : { b, bi, r, y: rankY(r) };
+  }).filter(Boolean).sort((a, b_) => a.r - b_.r);
+  let prev2 = -9999;
+  pts.forEach(p => { let ly = p.y; if (ly - prev2 < 11) ly = prev2 + 11; prev2 = ly; p.ly = ly; });
+  pts.forEach(p => {
+    const col = PAL[p.bi % PAL.length], isHL = hl === p.b;
+    bctx.globalAlpha = hl ? (isHL ? 1 : 0.10) : 0.85;
+    bctx.font = (isHL ? '600 11px' : '10px') + ' -apple-system,sans-serif';
+    bctx.fillStyle = col; bctx.textAlign = 'left';
+    const nm = p.b.length > 20 ? p.b.slice(0, 19) + '…' : p.b;
+    bctx.fillText(`#${Math.round(p.r)} ${nm}`, mthX(NM - 1) + 13, p.ly + 3.5);
+    bctx.strokeStyle = col; bctx.lineWidth = 0.4; bctx.setLineDash([2, 2]);
+    bctx.beginPath(); bctx.moveTo(mthX(frame) + 5, rankY(p.r)); bctx.lineTo(mthX(NM - 1) + 11, p.ly + 1);
+    bctx.stroke(); bctx.setLineDash([]); bctx.globalAlpha = 1;
+  });
+}
+
+/* ── 애니메이션 ── */
+function animStep(ts) {
+  if (!lastTs) lastTs = ts;
+  const dt = ts - lastTs; lastTs = ts;
+  prog += dt / animMs;
+  if (prog >= 1) {
+    prog = 0; frame = Math.min(frame + 1, NM - 1);
+    if (frame >= NM - 1) { stopPlay(); draw(); return; }
+  }
+  draw(); if (playing) rafId = requestAnimationFrame(animStep);
+}
+function togglePlay() { playing ? stopPlay() : startPlay(); }
+function startPlay() {
+  if (frame >= NM - 1) { frame = 0; prog = 0; }
+  playing = true;
+  document.getElementById('playBtn').textContent = '⏸ Pause';
+  document.getElementById('playBtn').classList.add('playing');
+  lastTs = null; rafId = requestAnimationFrame(animStep);
+}
+function stopPlay() {
+  playing = false; if (rafId) cancelAnimationFrame(rafId);
+  document.getElementById('playBtn').textContent = '▶ Play';
+  document.getElementById('playBtn').classList.remove('playing');
+}
+function doReset() { stopPlay(); frame = 0; prog = 0; draw(); }
+
+/* ── 클릭 ── */
+bc.addEventListener('click', e => {
+  const rect = bc.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  for (let i = 0; i < NM; i++) {
+    if (Math.abs(mx - mthX(i)) < 22 && my < PAD.t) {
+      stopPlay(); frame = i; prog = 0; draw();
+      document.querySelectorAll('.mc').forEach((c, j) => c.classList.toggle('active', j === i));
+      return;
+    }
+  }
+  let md = 999, mb = null;
+  BRANDS.forEach((b, bi) => {
+    if (muted.has(b)) return;
+    for (let mi = 0; mi <= frame; mi++) {
+      const r = mi < frame ? RAW[b].r[mi] : getRank(bi, frame, prog);
+      if (r === null) continue;
+      const d = Math.hypot(mx - mthX(mi), my - rankY(r));
+      if (d < md) { md = d; mb = b; }
+    }
+  });
+  if (md < 18) {
+    hl = hl === mb ? null : mb;
+    document.querySelectorAll('.leg-item').forEach(el => el.classList.toggle('hl', el.dataset.brand === hl));
+    draw();
+  } else {
+    hl = null;
+    document.querySelectorAll('.leg-item').forEach(el => el.classList.remove('hl'));
+    draw();
+  }
+});
+
+/* ── 툴팁 (매출 채널 비중 포함) ── */
+function fmtM(v) { return v ? `$${(v/1e6).toFixed(2)}M` : '—'; }
+function fmtPct(part, total) {
+  if (!part || !total) return '0%';
+  return (part / total * 100).toFixed(1) + '%';
+}
+
+bc.addEventListener('mousemove', e => {
+  const rect = bc.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  let md = 999, near = null;
+  BRANDS.forEach((b, bi) => {
+    if (muted.has(b)) return;
+    for (let mi = 0; mi <= frame; mi++) {
+      const r = mi < frame ? RAW[b].r[mi] : getRank(bi, frame, prog);
+      if (r === null) continue;
+      const d = Math.hypot(mx - mthX(mi), my - rankY(r));
+      if (d < md) {
+        md = d;
+        near = {
+          b, mi, bi,
+          rank : RAW[b].r[Math.min(mi, NM-1)],
+          gmv  : RAW[b].g[mi],
+          so   : RAW[b].so[mi],
+          af   : RAW[b].af[mi],
+          ml   : RAW[b].ml[mi],
+          ap   : RAW[b].ap[mi],
+        };
+      }
+    }
+  });
+
+  if (near && md < 22) {
+    const col   = PAL[near.bi % PAL.length];
+    const prevR = near.mi > 0 ? RAW[near.b].r[near.mi - 1] : null;
+    const d     = near.rank && prevR ? prevR - near.rank : null;
+    const dStr  = d === null ? '—' :
+      d > 0 ? `<span style="color:${C.up}">▲${d} 상승</span>` :
+      d < 0 ? `<span style="color:${C.dn}">▼${Math.abs(d)} 하락</span>` :
+              `<span style="color:var(--textt)">변동없음</span>`;
+
+    // 매출 채널 비중 계산
+    const total = near.gmv || 0;
+    const so    = near.so  || 0;
+    const af    = near.af  || 0;
+    const ml    = near.ml  || 0;
+    const soPct = total ? so / total * 100 : 0;
+    const afPct = total ? af / total * 100 : 0;
+    const mlPct = total ? ml / total * 100 : 0;
+
+    // 비중 바 색상
+    const soCol = '#4e9af1';  // Self-Op: 파랑
+    const afCol = '#f4845f';  // Affiliate: 오렌지
+    const mlCol = '#5cb85c';  // Mall: 초록
+
+    const hasChannel = total > 0 && (so > 0 || af > 0 || ml > 0);
+
+    tt.innerHTML = `
+      <div class="tt-name" style="color:${col}">${near.b}</div>
+      <div class="tt-row"><span>📅 월</span><span class="tt-v">${ML[near.mi]}</span></div>
+      <div class="tt-row"><span>🏆 순위</span><span class="tt-v">#${near.rank ?? '—'}</span></div>
+      <div class="tt-row"><span>📈 전월 대비</span><span class="tt-v">${dStr}</span></div>
+      <div class="tt-row"><span>💰 총 Revenue</span><span class="tt-v">${fmtM(near.gmv)}</span></div>
+      <div class="tt-row"><span>🏷️ 평균 단가</span><span class="tt-v">${near.ap ? `$${near.ap}` : '—'}</span></div>
+      ${hasChannel ? `
+      <hr class="tt-divider">
+      <div style="font-size:10px;color:var(--textt);margin-bottom:5px">매출 채널 비중 · Channel Mix</div>
+      <div class="tt-row">
+        <span style="color:${soCol}">■ Self-Operated</span>
+        <span class="tt-v">${fmtM(near.so)} <span style="color:var(--textt);font-weight:400">(${fmtPct(so,total)})</span></span>
+      </div>
+      <div class="tt-row">
+        <span style="color:${afCol}">■ Affiliate</span>
+        <span class="tt-v">${fmtM(near.af)} <span style="color:var(--textt);font-weight:400">(${fmtPct(af,total)})</span></span>
+      </div>
+      <div class="tt-row">
+        <span style="color:${mlCol}">■ Shopping Mall</span>
+        <span class="tt-v">${fmtM(near.ml)} <span style="color:var(--textt);font-weight:400">(${fmtPct(ml,total)})</span></span>
+      </div>
+      <div class="rev-bar-wrap">
+        <div class="rev-bar-track">
+          <div class="rev-bar-seg" style="width:${soPct}%;background:${soCol}88"></div>
+          <div class="rev-bar-seg" style="width:${afPct}%;background:${afCol}88"></div>
+          <div class="rev-bar-seg" style="width:${mlPct}%;background:${mlCol}88"></div>
+        </div>
+        <div class="rev-bar-label">
+          <span style="color:${soCol}">Self-Op ${soPct.toFixed(0)}%</span>
+          <span style="color:${afCol}">Affiliate ${afPct.toFixed(0)}%</span>
+          <span style="color:${mlCol}">Mall ${mlPct.toFixed(0)}%</span>
+        </div>
+      </div>` : ''}
+    `;
+    tt.style.opacity = '1';
+    let tx = mx + 14, ty = my - 10;
+    if (tx + 240 > W) tx = mx - 255;
+    if (ty + 220 > H) ty = H - 230;
+    tt.style.left = tx + 'px'; tt.style.top = ty + 'px';
+  } else { tt.style.opacity = '0'; }
+});
+bc.addEventListener('mouseleave', () => tt.style.opacity = '0');
+
+/* ── 검색 ── */
+document.getElementById('searchBox').addEventListener('input', function() {
+  const q = this.value.trim().toLowerCase();
+  if (!q) { hl = null; document.querySelectorAll('.leg-item').forEach(el => el.classList.remove('hl')); draw(); return; }
+  const matched = BRANDS.find(b => b.toLowerCase().includes(q));
+  hl = matched || null;
+  document.querySelectorAll('.leg-item').forEach(el => el.classList.toggle('hl', el.dataset.brand === hl));
+  draw();
+});
+
+/* ── 레전드 ── */
+const legWrap = document.getElementById('leg');
+BRANDS.forEach((b, bi) => {
+  const el = document.createElement('div');
+  el.className = 'leg-item'; el.dataset.brand = b;
+  el.title = `${b} — 클릭: 숨기기/보이기`;
+  el.innerHTML = `<span class="leg-d" style="background:${PAL[bi % PAL.length]}"></span>${b.length > 17 ? b.slice(0,16)+'…' : b}`;
+  el.onclick = () => {
+    if (muted.has(b)) { muted.delete(b); el.classList.remove('off'); }
+    else              { muted.add(b);    el.classList.add('off'); if (hl === b) hl = null; }
+    updateMutedCount(); draw();
+  };
+  legWrap.appendChild(el);
+});
+
+/* ── 초기화 ── */
+initBC();
+frame = NM - 1; prog = 0;
+updateMutedCount();
+draw();
+window.addEventListener('resize', () => { initBC(); draw(); });
+</script>
+</body>
+</html>
