@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TikTok Shop UK · Top 100 Brand Ranking Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:#ffffff; --bg2:#f5f4f0; --bg3:#eeecea;
+    --text:#3d3d3a; --texts:#73726c; --textt:#9e9d97;
+    --border:rgba(0,0,0,0.10); --border2:rgba(0,0,0,0.18);
+    --up:#1D9E75; --dn:#D85A30; --accent:#378ADD;
+    --radius:8px; --radius-lg:12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#1e1e1c; --bg2:#2c2c2a; --bg3:#3a3a38;
+      --text:#c2c0b6; --texts:#88877f; --textt:#5f5e5a;
+      --border:rgba(255,255,255,0.09); --border2:rgba(255,255,255,0.18);
+    }
+  }
+  body {
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;
+    background:var(--bg); color:var(--text); padding:2rem 2.5rem; min-height:100vh;
+  }
+  h1 { font-size:18px; font-weight:600; color:var(--text); margin-bottom:4px; }
+  .subtitle { font-size:12px; color:var(--texts); margin-bottom:1.75rem; }
+
+  .sec-row { display:flex; align-items:center; gap:6px; margin-bottom:.65rem; }
+  .sec-label { font-size:10.5px; font-weight:600; letter-spacing:.07em; text-transform:uppercase; color:var(--texts); }
+
+  .info-icon {
+    display:inline-flex; align-items:center; justify-content:center;
+    width:15px; height:15px; border-radius:50%;
+    background:var(--bg3); border:1px solid var(--border2);
+    font-size:9px; color:var(--texts); cursor:default;
+    position:relative; flex-shrink:0; transition:background .15s;
+  }
+  .info-icon:hover { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .info-icon .info-tip {
+    display:none; position:absolute; left:22px; top:50%; transform:translateY(-50%);
+    background:var(--text); color:var(--bg); border-radius:8px; padding:10px 13px;
+    font-size:11px; font-weight:400; line-height:1.65; z-index:100;
+    box-shadow:0 4px 16px rgba(0,0,0,.18); min-width:240px; max-width:320px;
+    white-space:normal; letter-spacing:0; text-transform:none;
+  }
+  .info-icon .info-tip::before {
+    content:''; position:absolute; left:-5px; top:50%; transform:translateY(-50%);
+    border:5px solid transparent; border-right-color:var(--text); border-left:0;
+  }
+  .info-icon:hover .info-tip { display:block; }
+
+  .mrow { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:8px; margin-bottom:1.5rem; }
+  .mc { background:var(--bg2); border-radius:var(--radius); padding:.7rem .9rem; cursor:pointer; border:1.5px solid transparent; transition:border-color .15s,background .15s; }
+  .mc:hover { background:var(--bg3); }
+  .mc.active { border-color:var(--accent); background:var(--bg); }
+  .mc-lbl { font-size:10px; color:var(--texts); margin-bottom:3px; }
+  .mc-val { font-size:16px; font-weight:600; color:var(--text); line-height:1.15; }
+  .mc-chg { font-size:10px; margin-top:3px; }
+  .up { color:var(--up); } .dn { color:var(--dn); }
+
+  .gmv-wrap { margin-bottom:1.75rem; background:var(--bg2); border-radius:var(--radius-lg); padding:1rem 1.25rem; }
+  #gmvC-wrap { position:relative; width:100%; height:150px; margin-top:.5rem; }
+
+  .ctrl { display:flex; align-items:center; gap:8px; margin-bottom:.6rem; flex-wrap:wrap; }
+  .btn { font-size:12px; padding:5px 16px; border-radius:20px; border:1px solid var(--border2); background:transparent; cursor:pointer; color:var(--texts); transition:background .15s,color .15s; line-height:1.6; }
+  .btn:hover { background:var(--bg3); }
+  .btn.primary { background:var(--text); color:var(--bg); border-color:var(--text); }
+  .btn.playing { background:var(--up); color:#fff; border-color:var(--up); }
+  .spd { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--texts); }
+  .spd select { font-size:11px; border:1px solid var(--border2); border-radius:6px; padding:3px 7px; background:var(--bg); color:var(--text); cursor:pointer; }
+
+  .usage-guide { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:.9rem; padding:10px 14px; background:var(--bg2); border-radius:var(--radius); border-left:3px solid var(--accent); }
+  .usage-item { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--texts); }
+  .usage-sep { color:var(--border2); font-size:14px; }
+
+  .search-wrap { display:flex; align-items:center; gap:8px; margin-bottom:.9rem; }
+  .search-wrap input { font-size:12px; padding:5px 14px; border-radius:20px; border:1px solid var(--border2); background:var(--bg); color:var(--text); width:240px; outline:none; transition:border-color .15s; }
+  .search-wrap input:focus { border-color:var(--accent); }
+  .search-wrap input::placeholder { color:var(--textt); }
+
+  .bump-wrap { position:relative; width:100%; }
+  canvas#bc { display:block; width:100%; }
+
+  .tt {
+    position:absolute; background:var(--bg); border:1px solid var(--border2);
+    border-radius:10px; padding:10px 14px; font-size:11px; pointer-events:none;
+    opacity:0; transition:opacity .1s; z-index:30; min-width:220px;
+    box-shadow:0 4px 20px rgba(0,0,0,.12);
+  }
+  .tt-name { font-weight:600; font-size:12.5px; margin-bottom:8px; }
+  .tt-row { display:flex; justify-content:space-between; gap:12px; margin:2px 0; color:var(--texts); }
+  .tt-v { color:var(--text); font-weight:600; }
+  .tt-divider { border:none; border-top:1px solid var(--border); margin:6px 0; }
+  .rev-bar-wrap { margin-top:7px; }
+  .rev-bar-label { display:flex; justify-content:space-between; font-size:10px; color:var(--textt); margin-bottom:3px; }
+  .rev-bar-track { width:100%; height:7px; background:var(--bg3); border-radius:4px; overflow:hidden; display:flex; }
+  .rev-bar-seg { height:100%; transition:width .2s; }
+
+  .leg-header { display:flex; align-items:center; justify-content:space-between; margin-top:1rem; margin-bottom:.4rem; }
+  .leg-wrap { display:flex; flex-wrap:wrap; gap:4px; padding:1rem 1.25rem; background:var(--bg2); border-radius:var(--radius-lg); }
+  .leg-item { display:flex; align-items:center; gap:5px; font-size:10.5px; color:var(--texts); cursor:pointer; padding:3px 8px; border-radius:20px; border:1px solid transparent; transition:background .12s,opacity .12s; user-select:none; line-height:1.5; }
+  .leg-item:hover { background:var(--bg3); }
+  .leg-item.off { opacity:.22; }
+  .leg-item.hl  { border-color:var(--accent); background:var(--bg); }
+  .leg-d { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+
+  .source-badge {
+    display:inline-flex; align-items:center; gap:6px;
+    background:var(--bg2); border:1px solid var(--border2);
+    border-radius:20px; padding:4px 12px;
+    font-size:10.5px; color:var(--texts);
+    margin-bottom:1.75rem;
+  }
+  .source-badge .dot { width:7px; height:7px; border-radius:50%; background:#ff4d4f; flex-shrink:0; }
+
+  .footer-note { margin-top:1.5rem; padding:12px 16px; background:var(--bg2); border-radius:var(--radius); font-size:10.5px; color:var(--textt); line-height:1.8; }
+  .footer-note strong { color:var(--texts); }
+
+  @media (max-width:680px) {
+    body { padding:1rem; }
+    .mrow { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  }
+</style>
+</head>
+<body>
+
+<h1>TikTok Shop UK · Top 100 Brand Ranking Dashboard</h1>
+<p class="subtitle">Top 100 브랜드 월별 매출 순위 변동을 한눈에 확인하세요 · Dec 25 - May 26</p>
+
+<div class="source-badge">
+  <span class="dot"></span>
+  <span>데이터 출처 · Source :</span>
+  <strong style="color:var(--text)">Kalodata &gt; Shop &gt; Category : Skincare (UK)</strong>
+</div>
+
+<div class="sec-row">
+  <span class="sec-label">월별 카테고리 Revenue</span>
+  <span class="info-icon">?
+    <span class="info-tip">
+      <strong>Monthly Category Revenue</strong><br>
+      해당 월 Top 100 스토어의 Revenue($) 총합입니다.<br>
+      <em>Sum of Revenue($) for Top 100 stores in the month.</em><br><br>
+      <strong>카드 클릭</strong> → 해당 월로 차트 이동<br>
+      <em>Click a card to jump to that month on the chart.</em><br><br>
+      ▲ 초록: 전월 대비 증가 · ▼ 빨강: 전월 대비 감소<br>
+      <em>▲ Green = MoM increase · ▼ Red = MoM decrease</em>
+    </span>
+  </span>
+</div>
+<div class="mrow" id="mrow"></div>
+
+<div class="gmv-wrap">
+  <div class="sec-row">
+    <span class="sec-label">Revenue 볼륨 추이</span>
+    <span class="info-icon">?
+      <span class="info-tip">
+        <strong>Revenue Monthly Trend</strong><br>
+        각 막대 = 해당 월 Top 100 스토어 총 매출 합산<br>
+        <em>Each bar = total revenue of Top 100 stores that month.</em>
+      </span>
+    </span>
+  </div>
+  <div id="gmvC-wrap"><canvas id="gmvC"></canvas></div>
+</div>
+
+<div class="sec-row" style="margin-top:1.5rem">
+  <span class="sec-label">Top 100 브랜드 랭킹 이동 (Bump Chart)</span>
+  <span class="info-icon">?
+    <span class="info-tip">
+      <strong>Bump Chart</strong><br>
+      각 선(Line) = 하나의 브랜드. 위로 올라갈수록 순위가 높습니다 (#1 = 최상단).<br>
+      <em>Each line = one brand. Higher = better rank (#1 at top).</em><br><br>
+      선이 없는 월 = 해당 월 Top 100 밖이거나 데이터 없음<br>
+      <em>No line = outside Top 100 or no data that month.</em>
+    </span>
+  </span>
+</div>
+
+<div class="usage-guide">
+  <div class="usage-item"><span>&#9654;</span>&nbsp;<strong>Play</strong> 버튼으로 월별 순위 변동 애니메이션 시작</div>
+  <span class="usage-sep">|</span>
+  <div class="usage-item"><span>&#128433;</span>&nbsp;<strong>선·점 클릭</strong> → 브랜드 하이라이트</div>
+  <span class="usage-sep">|</span>
+  <div class="usage-item"><span>&#128197;</span>&nbsp;<strong>월 헤더 클릭</strong> → 해당 월로 이동</div>
+  <span class="usage-sep">|</span>
+  <div class="usage-item"><span>&#128269;</span>&nbsp;<strong>검색창</strong>에 브랜드명 입력 → 자동 하이라이트</div>
+</div>
+
+<div class="ctrl">
+  <button class="btn primary" id="playBtn" onclick="togglePlay()">&#9654; Play</button>
+  <button class="btn" onclick="doReset()">&#8635; Reset</button>
+  <div class="spd">
+    속도
+    <select onchange="animMs=+this.value">
+      <option value="1400">느림</option>
+      <option value="750" selected>보통</option>
+      <option value="350">빠름</option>
+    </select>
+  </div>
+</div>
+
+<div class="search-wrap">
+  <input type="text" id="searchBox" placeholder="Search brand name...">
+</div>
+
+<div class="bump-wrap">
+  <canvas id="bc"></canvas>
+  <div class="tt" id="tt"></div>
+</div>
+
+<div class="leg-header">
+  <div class="sec-row" style="margin-bottom:0">
+    <span class="sec-label">브랜드 레전드</span>
+  </div>
+  <span style="font-size:10.5px;color:var(--textt)">
+    총 <strong id="brandCount" style="color:var(--texts)">0</strong>개 브랜드 ·
+    <span id="mutedCount">0</span>개 숨김
+  </span>
+</div>
+<div class="leg-wrap" id="leg"></div>
+
+<div class="footer-note">
+  <strong>Data Notes</strong><br>
+  · 출처: <strong>Kalodata &gt; Shop &gt; Category : Skincare (UK)</strong><br>
+  · 순위(Rank)는 각 월의 <strong>Revenue($) 내림차순</strong> 기준으로 산정됩니다.
+    <em>Rank is by descending Revenue($) within each month.</em><br>
+  · 특정 월에 선이 없는 브랜드는 해당 월 Top 100 밖이거나 데이터가 없는 경우입니다.
+    <em>Missing line = outside Top 100 or no data for that month.</em><br>
+  · Revenue는 Self-Operated + Affiliate + Shopping Mall 채널 합산 기준입니다.
+    <em>Revenue = Self-Operated + Affiliate + Shopping Mall channels combined.</em>
+</div>
+
+<script>
+const ML     = ["Dec 25", "Jan 26", "Feb 26", "Mar 26", "Apr 26", "May 26"];
+const TOTALS = [9612327, 9270966, 12381669, 15108050, 15732203, 15047808];
+const BRANDS = ["Dr.melaxin UK", "plmakeupacademy", "medicube UK", "The Ordinary Store UK", "lorealparisuk", "47 Skin", "Glow For It", "LOOKFANTASTIC", "UKLASH", "By Babes LTD", "Beautyturess Glow Studio", "Nanolash", "madebymitchell", "SUNGBOON EDITOR UK", "Fyne Cosmetics", "COSRX UK", "Pacifiscs-UK", "thebeautycrop", "The INKEY List UK", "grace & stella UK", "Beauty of Joseon UK", "Garnier UK", "LinGlow TechStyle", "Lazy Tan", "Mixa UK", "Unineed", "Wonderskin UK", "NiveaUK", "Azio Beauty", "Bioheal Boh UK", "Kanzen Skincare", "Twenty One Beauty", "Laikou & Quiyum Cosmetics", "Laikou & Quiyum Skincare", "AngelSilkuk", "BiodanceUK", "ISOCLEAN", "Tina SHOP uk", "Nature Spell", "JOYECT", "Ultra Bee", "ANGEL SILK Official", "d'Alba UK", "SKINETICS.", "Cosy Cosmetics", "GLOSSYBOX UK", "Give Me Cosmetics", "KHANI", "JAMAY SHOP", "REGIMES SKINCARE SHOP", "CeraVeUKI", "Serenity Hue", "Skinsciencebymh", "You're Looking Well", "Narae UK", "OK Beauty Box", "Solo Skin London", "TRYFUZZOFF", "e.l.f. Cosmetics UK", "kelly beauty chic", "UpCircle", "Carbon Theory.", "5Kind", "Plantifique Skincare", "We Are Paradoxx UK", "Aurora Beauty UK", "Scentsational Beauty", "Remescar", "BRITISH VINTAGE LTD", "XIOIMY SKINCARE", "Falak Beauty Uk", "glow UK official", "Slanden Official", "Novyra", "Clomaná Beauty", "yasly beauty", "Solar Buddies", "Weleda UK", "UnileverUK", "AXISY UK", "Nostalgiabyrahim.co.uk", "Zara Iqbal", "PADORO SHOP", "Eden Beauty", "Natureehairoil", "MustBDark", "Exquisite Studio1", "Rosalique", "Makeup Revolution", "Allien secret london", "iqrasaleemx", "SXC Glo", "Honor the future", "gzolimy cosmetics", "LAIKOU QUIYUN COSMETICS", "Dr Sam's Skincare", "Medi Grade", "BPerfect Cosmetics", "Peach beautful", "REHAB Your Hair", "Fat Cow Skincare", "Allure Eco", "Leoyol", "Xioimy", "Q7Paris Cosmetics and Beauty", "FWBEAUTY", "ADayDay", "SKIN FOOD COSMETIC UK", "i beautiful", "PurePatch", "ANGEL SILK GLOBAL", "Ervaia", "Calm Haven Beauty", "The Serenity Lab", "Holy Bull Shop", "2Bmagic--UK", "RealBeautyLondon", "Luminaskn", "7th Heaven UK", "Shauons", "QVC UK", "mixsoon.uk", "SupremeTan", "lunoon beauty care", "Makari GB", "YF Cosmetics", "Sculpted by Aimee", "Mowje Oedd", "Dr.Reju-All UK", "Hanri Cosmetics", "Linwen TECH", "Mercilen cosmetics", "Laboratoire SVR UK", "Pixi Beauty UK", "Exotic Cosmetics Uk", "LitBear Beauty", "DoryukiShop", "organicsbyhannah", "Kemsebeauty", "smuutiskinuk", "Cult Beauty", "Rainbow bow shop", "Mizi beauty", "rose origins shop", "TIKZORA", "Sunnie Side Skin.", "YWHD", "Zuri Botanicals", "Yijiusi Trading", "Napiers The Herbalists", "MEGATANSHOP", "Redi Makeup", "Tktx supply uk numbing cream", "SUMIFANG NEW", "DFGDFCV", "nuorganic-uk", "Trendy Makeup Planet", "Jordana Ticia", "Mummykemi"];
+const RAW    = {"Dr.melaxin UK": {"r": [1, 1, 1, 1, 2, 2], "g": [1577144, 2161983, 3112976, 3917349, 3877501, 4370358], "so": [null, null, null, null, null, 67487], "af": [1564363, 2160074, 3108162, 3901431, 3863636, 4292773], "ml": [12781, 1909, 4814, 15917, 13864, 10097], "ap": [26.12, 24.38, 24.36, 25.57, 31.15, 36.51]}, "plmakeupacademy": {"r": [2, 4, 5, 3, 3, 3], "g": [805381, 666683, 646150, 1752559, 1184956, 1037522], "so": [408180, 268765, 250546, 425400, 447802, 374067], "af": [355341, 291346, 373666, 1270930, 672985, 629095], "ml": [41859, 106571, 21937, 56228, 64169, 34359], "ap": [26.64, 40.11, 24.43, 26.03, 23.53, 26.57]}, "medicube UK": {"r": [3, 2, 2, 2, 1, 1], "g": [763666, 1052506, 3001503, 3645604, 4794913, 4544713], "so": [null, null, 4525, 531, null, 22055], "af": [747411, 1049807, 2990990, 3636692, 4775688, 4513127], "ml": [16255, 2699, 5987, 8381, 19225, 9530], "ap": [16.58, 13.61, 14.32, 14.05, 17.78, 21.15]}, "The Ordinary Store UK": {"r": [4, 3, 4, 4, 4, 5], "g": [653353, 701294, 646649, 513501, 703013, 339162], "so": [57713, 50379, 67708, 40013, 77635, 32314], "af": [555558, 636749, 572476, 463627, 612705, 298004], "ml": [40081, 14165, 6464, 9860, 12672, 8843], "ap": [18.65, 19.23, 18.19, 17.1, 14.93, 17.44]}, "lorealparisuk": {"r": [5, 5, 3, 5, 7, 9], "g": [358678, 557925, 665848, 347473, 231468, 173382], "so": [30778, 22270, 43723, 30376, 31283, 8336], "af": [312077, 532534, 616797, 310847, 190506, 160023], "ml": [15823, 3120, 5328, 6250, 9678, 5023], "ap": [28.62, 19.75, 22.04, 21.66, 24.06, 22.65]}, "47 Skin": {"r": [6, 8, 17, 9, 29, 24], "g": [281486, 187985, 111744, 167476, 75316, 75878], "so": [61246, 33406, 21473, 33518, 14111, 11633], "af": [211915, 150760, 84494, 122926, 56289, 58877], "ml": [8324, 3819, 5776, 11031, 4915, 5367], "ap": [18.83, 15.73, 15.69, 15.99, 18.6, 19.59]}, "Glow For It": {"r": [7, 7, 9, 15, 18, 12], "g": [227190, 238736, 156420, 125074, 114905, 164500], "so": [62059, 64615, 61509, 34764, 27793, 68646], "af": [146030, 173288, 93738, 90088, 86870, 85829], "ml": [19100, 832, 1173, 222, 241, 10025], "ap": [33.07, 30.2, 33.37, 27.14, 29.75, 38.52]}, "LOOKFANTASTIC": {"r": [8, 15, 8, 10, 10, 15], "g": [225769, 104237, 157819, 162917, 154842, 107760], "so": [12682, 2916, 22473, 5492, 6638, 6535], "af": [164131, 73014, 94639, 115953, 112075, 72555], "ml": [48954, 28307, 40706, 41471, 36128, 28669], "ap": [18.37, 19.69, 24.2, 20.52, 18.34, 20.1]}, "UKLASH": {"r": [9, 16, 23, 20, 13, 21], "g": [205516, 100806, 68564, 104514, 135089, 86101], "so": [6193, 4007, 478, 2927, 10291, 10339], "af": [193104, 95795, 63032, 96598, 119225, 73283], "ml": [6218, 1003, 5053, 4988, 5572, 2478], "ap": [39.11, 38.61, 37.12, 32.39, 37.51, 40.83]}, "By Babes LTD": {"r": [10, 17, 20, 24, 21, 27], "g": [192043, 95498, 91212, 89681, 105169, 64338], "so": [46086, 15330, 18290, 15577, 31451, 31833], "af": [145492, 80109, 71371, 74104, 73156, 31869], "ml": [464, 59, 1550, null, 561, 635], "ap": [36.09, 29.72, 29.46, 25.99, 31.72, 32.1]}, "Beautyturess Glow Studio": {"r": [11, 13, 14, 23, 32, 28], "g": [168580, 109204, 125565, 93783, 58475, 57342], "so": [2136, 2608, null, 8150, 6991, 9747], "af": [151000, 102558, 116395, 80472, 45526, 42098], "ml": [15443, 4037, 9169, 5160, 5957, 5496], "ap": [35.28, 28.0, 29.65, 26.37, 23.84, 22.13]}, "Nanolash": {"r": [12, 10, 11, 14, 17, 16], "g": [161499, 134996, 147067, 126287, 116979, 102770], "so": [null, 171, 69, null, null, 4070], "af": [142857, 125396, 141670, 126226, 116743, 98700], "ml": [18642, 9428, 5328, 61, 235, null], "ap": [70.1, 39.24, 36.88, 36.1, 43.13, 40.85]}, "madebymitchell": {"r": [13, null, 99, 22, 20, 22], "g": [158751, null, 9710, 94066, 106611, 79771], "so": [58090, null, 4690, 51267, 37351, 38026], "af": [98409, null, 4912, 40823, 66940, 33989], "ml": [2251, null, 108, 1975, 2320, 7755], "ap": [37.36, null, 23.29, 18.9, 21.49, 28.34]}, "SUNGBOON EDITOR UK": {"r": [null, null, null, 13, 14, 18], "g": [null, null, null, 130057, 133417, 92929], "so": [null, null, null, null, null, null], "af": [null, null, null, 123390, 129188, 87056], "ml": [null, null, null, 6667, 4228, 5872], "ap": [null, null, null, 27.58, 35.12, 39.63]}, "Fyne Cosmetics": {"r": [14, 21, 40, 29, 30, 20], "g": [157044, 59790, 34651, 74986, 70460, 86941], "so": [75369, 34042, 26151, 39228, 38832, 65633], "af": [71285, 25691, 8427, 34957, 29756, 21185], "ml": [10389, 56, 72, 800, 1872, 122], "ap": [27.66, 38.4, 46.32, 38.75, 35.86, 21.55]}, "COSRX UK": {"r": [15, 18, 21, 17, 15, 17], "g": [149789, 85272, 87616, 109935, 121712, 99175], "so": [37745, 28746, 27211, 31714, 34674, 34765], "af": [96984, 49290, 50777, 64948, 65007, 44748], "ml": [15059, 7235, 9627, 13271, 22029, 19661], "ap": [34.25, 32.67, 29.99, 29.81, 30.66, 33.35]}, "Pacifiscs-UK": {"r": [16, 6, 13, 26, 35, 25], "g": [141105, 427665, 145601, 88223, 55577, 68392], "so": [null, null, null, null, null, null], "af": [124215, 416574, 140215, 83059, 53301, 66403], "ml": [16889, 11090, 5385, 5163, 2275, 1989], "ap": [10.89, 11.19, 13.77, 13.81, 13.32, 13.57]}, "thebeautycrop": {"r": [17, 11, 12, 19, 24, 14], "g": [139868, 116457, 146167, 106935, 89255, 114616], "so": [101694, 66879, 88040, 58270, 41190, 50979], "af": [30580, 47848, 53031, 43311, 41377, 56651], "ml": [7593, 1728, 5095, 5353, 6686, 6985], "ap": [12.54, 14.7, 16.83, 14.44, 15.09, 5.4]}, "The INKEY List UK": {"r": [18, 9, 7, 8, 9, 7], "g": [127037, 148111, 164940, 168634, 199251, 258039], "so": [65502, 86642, 36663, 43277, 107819, 95425], "af": [48294, 45924, 111314, 110981, 81107, 152701], "ml": [13239, 15545, 16962, 14374, 10324, 9913], "ap": [14.85, 15.06, 14.64, 13.19, 13.13, 11.94]}, "grace & stella UK": {"r": [19, 33, 38, 48, 40, 31], "g": [117171, 42018, 38486, 35297, 45365, 50123], "so": [null, null, null, null, null, null], "af": [114162, 41344, 38011, 34655, 44279, 49581], "ml": [3008, 673, 475, 642, 1086, 542], "ap": [13.75, 14.09, 12.88, 7.82, 11.04, 18.54]}, "Beauty of Joseon UK": {"r": [null, 19, 10, 33, 23, 10], "g": [null, 63071, 148727, 63246, 96462, 170950], "so": [null, null, 3941, 6001, 8882, 16438], "af": [null, 58996, 144662, 56770, 86381, 152455], "ml": [null, 4075, 123, 474, 1197, 2056], "ap": [null, 8.52, 8.83, 15.37, 18.11, 17.62]}, "Garnier UK": {"r": [20, 29, 6, 6, 26, 30], "g": [109582, 43142, 267518, 283095, 81820, 52414], "so": [13338, null, 20185, 24799, 1949, 5977], "af": [92394, 41364, 244978, 256165, 73675, 43628], "ml": [3849, 1778, 2355, 2129, 6194, 2807], "ap": [15.52, 11.69, 13.16, 13.27, 14.19, 14.34]}, "LinGlow TechStyle": {"r": [21, 79, null, null, null, null], "g": [107781, 15700, null, null, null, null], "so": [null, null, null, null, null, null], "af": [102945, 15428, null, null, null, null], "ml": [4836, 271, null, null, null, null], "ap": [21.44, 20.21, null, null, null, null]}, "Lazy Tan": {"r": [22, 23, 19, 25, 27, 59], "g": [101858, 53441, 97586, 88658, 81619, 19403], "so": [249, null, 1348, 774, 340, 260], "af": [101459, 53414, 95937, 87840, 80674, 18935], "ml": [149, 26, 300, 43, 605, 207], "ap": [27.93, 24.58, 26.62, 24.14, 31.45, 34.9]}, "Mixa UK": {"r": [null, null, 22, 44, 28, 19], "g": [null, null, 68590, 37875, 76911, 91296], "so": [null, null, null, null, null, null], "af": [null, null, 68410, 37716, 76403, 91129], "ml": [null, null, 180, 159, 508, 166], "ap": [null, null, 6.46, 6.07, 12.15, 13.21]}, "Unineed": {"r": [23, 57, 34, 35, 43, 50], "g": [97040, 21468, 43179, 60858, 38639, 24163], "so": [7581, 534, 1097, 888, 173, null], "af": [76920, 16788, 38475, 53726, 31212, 20748], "ml": [12538, 4145, 3606, 6242, 7253, 3415], "ap": [18.68, 18.7, 18.7, 21.44, 17.29, 14.28]}, "Wonderskin UK": {"r": [24, 20, 15, 12, 12, 38], "g": [95292, 62025, 118410, 140962, 138528, 40125], "so": [12427, 2410, 3414, 7691, 8978, 3824], "af": [81175, 59404, 114810, 132420, 127601, 36097], "ml": [1689, 210, 185, 850, 1948, 204], "ap": [23.19, 34.73, 32.53, 31.16, 26.45, 23.88]}, "NiveaUK": {"r": [25, 35, 29, 11, 11, 13], "g": [95158, 39187, 48195, 150656, 144510, 136880], "so": [23, 2784, 1056, 1322, 66, 1022], "af": [90011, 34963, 44903, 146555, 139522, 133970], "ml": [5123, 1439, 2234, 2778, 4921, 1887], "ap": [17.8, 18.94, 19.17, 15.62, 16.24, 22.33]}, "Azio Beauty": {"r": [26, 47, 57, 55, 68, 69], "g": [82121, 28994, 26702, 27702, 17076, 15147], "so": [null, null, null, null, null, 2625], "af": [44521, 27811, 24675, 23971, 15111, 10900], "ml": [37599, 1182, 2026, 3731, 1965, 1622], "ap": [52.95, 29.74, 31.41, 26.69, 28.7, 29.24]}, "Bioheal Boh UK": {"r": [null, null, 26, 40, 16, 6], "g": [null, null, 58759, 47271, 118035, 266155], "so": [null, null, null, null, 203, 52348], "af": [null, null, 58305, 46759, 108729, 208106], "ml": [null, null, 453, 512, 9102, 5700], "ap": [null, null, 31.24, 26.19, 34.38, 36.84]}, "Kanzen Skincare": {"r": [27, 94, 68, 66, 50, 61], "g": [80761, 12355, 17908, 20487, 29140, 17892], "so": [32973, 1614, 3213, 781, 391, 176], "af": [37870, 8488, 13343, 16835, 26320, 15394], "ml": [9917, 2251, 1351, 2870, 2429, 2321], "ap": [15.01, 11.76, 10.3, 8.41, 8.18, 11.11]}, "Twenty One Beauty": {"r": [28, 34, 63, 86, 82, 89], "g": [77454, 41853, 23852, 14207, 12437, 10725], "so": [9831, 15877, 9834, 5668, 3891, 2421], "af": [67623, 25976, 14017, 8419, 8545, 8304], "ml": [null, null, null, 119, null, null], "ap": [51.98, 41.85, 39.62, 36.34, 39.48, 36.61]}, "Laikou & Quiyum Cosmetics": {"r": [29, null, 100, null, 99, null], "g": [73496, null, 9525, null, 9334, null], "so": [null, null, null, null, 181, null], "af": [50819, null, 5292, null, 2198, null], "ml": [22677, null, 4233, null, 6955, null], "ap": [12.73, null, 11.15, null, 10.77, null]}, "Laikou & Quiyum Skincare": {"r": [30, 60, 69, 75, 51, 65], "g": [71774, 21352, 17754, 16570, 27910, 16706], "so": [4008, 1158, 619, 507, 341, 501], "af": [45970, 10652, 9967, 9821, 12108, 10331], "ml": [21795, 9542, 7167, 6242, 15460, 5873], "ap": [13.09, 11.04, 10.9, 12.14, 11.12, 10.76]}, "AngelSilkuk": {"r": [null, 30, 31, 63, null, null], "g": [null, 42977, 46273, 22127, null, null], "so": [null, null, null, null, null, null], "af": [null, 42401, 46273, 21561, null, null], "ml": [null, 575, null, 566, null, null], "ap": [null, 15.15, 15.55, 15.01, null, null]}, "BiodanceUK": {"r": [31, 31, 45, 38, 45, 52], "g": [69264, 42458, 32148, 53939, 37163, 22691], "so": [18833, 11904, 10070, 13512, 6510, 6368], "af": [44365, 27432, 19382, 30028, 24535, 13504], "ml": [6064, 3121, 2695, 10398, 6118, 2818], "ap": [19.99, 19.16, 19.19, 14.65, 14.08, 19.39]}, "ISOCLEAN": {"r": [32, 49, 53, 45, 34, 54], "g": [67644, 28796, 28893, 36980, 56359, 21669], "so": [19400, 5604, 6748, 8970, 8785, 3528], "af": [47982, 23071, 22145, 27974, 47438, 17761], "ml": [261, 121, null, 34, 136, 380], "ap": [7.63, 6.88, 5.73, 6.77, 10.52, 10.01]}, "Tina SHOP uk": {"r": [33, null, null, null, null, null], "g": [66110, null, null, null, null, null], "so": [null, null, null, null, null, null], "af": [60, null, null, null, null, null], "ml": [66050, null, null, null, null, null], "ap": [13.3, null, null, null, null, null]}, "Nature Spell": {"r": [34, 26, 36, 42, 46, 36], "g": [62976, 47216, 41654, 41495, 36416, 41554], "so": [15723, 12600, 2406, null, null, 9997], "af": [38736, 29503, 32033, 35064, 30691, 25386], "ml": [8516, 5112, 7214, 6431, 5724, 6171], "ap": [11.73, 10.12, 9.76, 9.1, 9.17, 11.57]}, "JOYECT": {"r": [35, 36, 30, 46, 65, 64], "g": [52746, 38399, 46538, 36789, 17754, 16866], "so": [null, null, null, null, null, null], "af": [46774, 35469, 41224, 34490, 16671, 15918], "ml": [5971, 2930, 5314, 2298, 1083, 948], "ap": [12.53, 12.19, 12.4, 9.14, 7.77, 9.21]}, "Ultra Bee": {"r": [36, 22, 25, 21, 25, 26], "g": [52726, 58638, 63833, 97905, 87325, 68072], "so": [null, null, 217, 216, 48, 10], "af": [52573, 58355, 59953, 96445, 86137, 67137], "ml": [153, 283, 3662, 1243, 1139, 924], "ap": [20.35, 17.97, 15.22, 14.42, 18.0, 22.99]}, "ANGEL SILK Official": {"r": [37, 27, 42, 47, null, null], "g": [49907, 46181, 33579, 36769, null, null], "so": [null, null, null, null, null, null], "af": [48489, 39573, 32767, 34071, null, null], "ml": [1417, 6607, 812, 2697, null, null], "ap": [15.49, 14.44, 14.63, 12.44, null, null]}, "d'Alba UK": {"r": [null, null, 37, 7, 8, 4], "g": [null, null, 40435, 194388, 228673, 379115], "so": [null, null, null, null, null, null], "af": [null, null, 40034, 190758, 226502, 377635], "ml": [null, null, 401, 3630, 2170, 1479], "ap": [null, null, 10.87, 10.97, 12.1, 13.98]}, "SKINETICS.": {"r": [38, 42, 72, 74, 66, 67], "g": [48333, 31333, 16936, 16691, 17713, 16127], "so": [43825, 26481, 12655, 12074, 13973, 13765], "af": [4294, 4303, 1310, 2037, 3270, 1545], "ml": [214, 548, 2970, 2579, 468, 816], "ap": [31.72, 35.61, 32.82, 36.13, 36.67, 36.24]}, "Cosy Cosmetics": {"r": [39, 62, 58, 58, 38, 49], "g": [48190, 20043, 26522, 24912, 48321, 24421], "so": [26261, 16128, 22681, 18132, 26042, 13512], "af": [21405, 3394, 3736, 6452, 21667, 10729], "ml": [523, 521, 104, 327, 611, 180], "ap": [3.35, 2.73, 1.55, 2.15, 1.31, 2.04]}, "GLOSSYBOX UK": {"r": [null, null, null, 39, null, null], "g": [null, null, null, 53765, null, null], "so": [null, null, null, 1122, null, null], "af": [null, null, null, 50912, null, null], "ml": [null, null, null, 1730, null, null], "ap": [null, null, null, 46.23, null, null]}, "Give Me Cosmetics": {"r": [40, 40, 61, 71, null, null], "g": [48054, 34893, 25338, 17853, null, null], "so": [31278, 22926, 15694, 11150, null, null], "af": [12080, 10562, 7078, 4625, null, null], "ml": [4695, 1405, 2565, 2077, null, null], "ap": [14.58, 9.04, 10.33, 10.53, null, null]}, "KHANI": {"r": [41, 12, 16, 18, 39, 37], "g": [45242, 116251, 118263, 107691, 47608, 40423], "so": [42888, 64785, 32846, 70532, 25143, 2488], "af": [2127, 48822, 84547, 14715, 18518, 35467], "ml": [226, 2644, 869, 22443, 3945, 2467], "ap": [27.81, 27.53, 47.46, 18.34, 9.73, 14.41]}, "JAMAY SHOP": {"r": [42, 58, 43, 73, 86, null], "g": [42480, 21455, 33414, 17301, 11386, null], "so": [null, null, null, null, null, null], "af": [33845, 20286, 32042, 15085, 5410, null], "ml": [8635, 1169, 1371, 2216, 5975, null], "ap": [23.0, 19.83, 18.15, 21.49, 20.19, null]}, "REGIMES SKINCARE SHOP": {"r": [43, 46, 52, 31, 44, null], "g": [40055, 29022, 29398, 72459, 37173, null], "so": [null, null, null, null, null, null], "af": [38046, 28965, 29268, 68272, 36395, null], "ml": [2008, 56, 129, 4186, 778, null], "ap": [70.64, 67.34, 66.36, 65.99, 65.68, null]}, "CeraVeUKI": {"r": [null, 43, 54, 54, 36, 23], "g": [null, 30976, 27720, 28938, 49984, 76279], "so": [null, null, null, 4767, 10182, 16336], "af": [null, 29117, 26802, 22337, 34827, 56138], "ml": [null, 1858, 918, 1833, 4974, 3804], "ap": [null, 15.46, 14.65, 12.6, 17.85, 18.18]}, "Serenity Hue": {"r": [44, 54, 75, 60, 69, 72], "g": [39328, 24834, 14501, 23680, 16042, 13558], "so": [28199, 19157, 5969, 11445, 8687, 10206], "af": [6752, 5304, 8094, 11732, 6646, 3001], "ml": [4376, 372, 438, 502, 708, 350], "ap": [33.08, 40.91, 38.16, 49.44, 48.91, 49.13]}, "Skinsciencebymh": {"r": [45, 14, 47, 32, 57, 46], "g": [38938, 105109, 31060, 66468, 22713, 29786], "so": [23049, 37803, 18118, 15561, 10893, 13493], "af": [128, 42, 354, 374, 180, 198], "ml": [15760, 67262, 12586, 50532, 11639, 16094], "ap": [53.71, 47.89, 35.1, 40.58, 34.21, 31.35]}, "You're Looking Well": {"r": [null, null, null, null, null, 45], "g": [null, null, null, null, null, 32642], "so": [null, null, null, null, null, 6596], "af": [null, null, null, null, null, 8701], "ml": [null, null, null, null, null, 17345], "ap": [null, null, null, null, null, 34.32]}, "Narae UK": {"r": [46, 25, 46, 53, null, null], "g": [38790, 50508, 31380, 29193, null, null], "so": [null, null, 594, 1051, null, null], "af": [37081, 49496, 30012, 26643, null, null], "ml": [1709, 1012, 773, 1498, null, null], "ap": [24.55, 22.99, 23.37, 22.17, null, null]}, "OK Beauty Box": {"r": [47, 51, 50, 68, 55, 83], "g": [38199, 28291, 29995, 20369, 23546, 11787], "so": [1258, 249, 997, 246, 1069, 473], "af": [30567, 27247, 28027, 19309, 20528, 9325], "ml": [6373, 795, 971, 813, 1947, 1988], "ap": [25.26, 15.98, 15.8, 15.81, 22.15, 25.57]}, "Solo Skin London": {"r": [48, 38, 32, 36, 42, 42], "g": [37751, 36566, 43911, 60347, 41100, 34249], "so": [29896, 28272, 35610, 53195, 34160, 28427], "af": [6609, 6763, 5424, 6109, 4266, 4555], "ml": [1244, 1531, 2876, 1042, 2673, 1265], "ap": [19.89, 18.37, 21.06, 20.28, 22.04, 25.79]}, "TRYFUZZOFF": {"r": [null, null, null, null, null, 48], "g": [null, null, null, null, null, 25320], "so": [null, null, null, null, null, null], "af": [null, null, null, null, null, 21707], "ml": [null, null, null, null, null, 3613], "ap": [null, null, null, null, null, 20.77]}, "e.l.f. Cosmetics UK": {"r": [49, 69, null, 87, 93, 81], "g": [37213, 17539, null, 13721, 10488, 12224], "so": [821, 32, null, 2011, 514, 3368], "af": [24458, 10051, null, 6773, 6061, 5465], "ml": [11933, 7456, null, 4936, 3913, 3389], "ap": [18.43, 12.63, null, 15.9, 14.53, 15.94]}, "kelly beauty chic": {"r": [50, 32, 71, 96, null, null], "g": [33439, 42154, 17198, 11055, null, null], "so": [null, null, null, null, null, null], "af": [15099, 19716, 3151, 2209, null, null], "ml": [18340, 22438, 14046, 8845, null, null], "ap": [13.5, 14.24, 14.27, 8.2, null, null]}, "UpCircle": {"r": [51, 78, 51, 27, 22, 44], "g": [32553, 15797, 29930, 78117, 97235, 32702], "so": [1625, null, null, 440, 173, null], "af": [27894, 14924, 28023, 75073, 95439, 31822], "ml": [3033, 872, 1906, 2604, 1621, 880], "ap": [21.18, 18.54, 18.98, 11.2, 14.3, 20.1]}, "Carbon Theory.": {"r": [null, null, null, null, null, 51], "g": [null, null, null, null, null, 23542], "so": [null, null, null, null, null, 540], "af": [null, null, null, null, null, 21474], "ml": [null, null, null, null, null, 1527], "ap": [null, null, null, null, null, 11.94]}, "5Kind": {"r": [52, 50, 64, 51, 53, 53], "g": [32429, 28459, 22408, 29603, 27117, 22624], "so": [null, null, null, null, null, null], "af": [32396, 28459, 22408, 29603, 27098, 22624], "ml": [33, null, null, null, 18, null], "ap": [19.64, 18.94, 19.04, 19.91, 18.78, 19.21]}, "Plantifique Skincare": {"r": [null, 52, 44, 69, 56, 41], "g": [null, 26509, 33018, 20105, 23291, 37823], "so": [null, null, null, null, null, 62], "af": [null, 25241, 32242, 19162, 22308, 37389], "ml": [null, 1268, 776, 943, 982, 372], "ap": [null, 21.84, 21.22, 28.12, 26.5, 24.25]}, "We Are Paradoxx UK": {"r": [53, 87, null, null, 97, 75], "g": [32009, 13477, null, null, 9701, 12962], "so": [13408, 500, null, null, 3796, 9239], "af": [18386, 12924, null, null, 4988, 3330], "ml": [214, 52, null, null, 915, 392], "ap": [24.21, 31.42, null, null, 34.04, 33.85]}, "Aurora Beauty UK": {"r": [null, 53, 55, 61, null, null], "g": [null, 25190, 27625, 23517, null, null], "so": [null, null, null, null, null, null], "af": [null, 24758, 27475, 20066, null, null], "ml": [null, 431, 150, 3450, null, null], "ap": [null, 11.41, 12.27, 12.74, null, null]}, "Scentsational Beauty": {"r": [54, 80, 98, 78, 92, null], "g": [31693, 15683, 9828, 15831, 10532, null], "so": [3311, null, 1489, 2012, 3647, null], "af": [19707, 7633, 5288, 3936, 1915, null], "ml": [8674, 8049, 3050, 9882, 4968, null], "ap": [29.93, 23.8, 21.14, 16.51, 16.23, null]}, "Remescar": {"r": [55, 93, 86, null, null, 70], "g": [30012, 12495, 12189, null, null, 13821], "so": [null, null, null, null, null, null], "af": [21784, 11600, 11225, null, null, 12808], "ml": [8227, 894, 964, null, null, 1012], "ap": [52.01, 28.33, 27.52, null, null, 31.56]}, "BRITISH VINTAGE LTD": {"r": [56, null, null, null, null, null], "g": [29973, null, null, null, null, null], "so": [null, null, null, null, null, null], "af": [17184, null, null, null, null, null], "ml": [12789, null, null, null, null, null], "ap": [35.6, null, null, null, null, null]}, "XIOIMY SKINCARE": {"r": [57, 44, 60, 65, 48, 68], "g": [29192, 30786, 26019, 20536, 33002, 15870], "so": [null, null, null, null, null, null], "af": [11920, 25577, 23140, 17285, 21302, 13071], "ml": [17272, 5209, 2879, 3250, 11700, 2798], "ap": [4.4, 4.1, 3.72, 3.72, 4.2, 3.97]}, "Falak Beauty Uk": {"r": [58, 81, 59, 90, 77, 63], "g": [28970, 15524, 26039, 12979, 13681, 17139], "so": [3456, 1587, 378, 161, 461, 407], "af": [13519, 8530, 23229, 10646, 8206, 11915], "ml": [11995, 5406, 2431, 2171, 5012, 4816], "ap": [31.59, 23.31, 27.55, 25.35, 21.44, 19.84]}, "glow UK official": {"r": [null, null, null, null, 58, null], "g": [null, null, null, null, 22518, null], "so": [null, null, null, null, null, null], "af": [null, null, null, null, 21622, null], "ml": [null, null, null, null, 896, null], "ap": [null, null, null, null, 17.27, null]}, "Slanden Official": {"r": [59, 68, 77, 79, 79, 86], "g": [26963, 17720, 13189, 15598, 13328, 11352], "so": [null, null, null, null, null, null], "af": [21683, 15269, 10638, 12784, 10544, 9184], "ml": [5279, 2451, 2551, 2813, 2783, 2168], "ap": [21.5, 17.46, 17.61, 18.57, 19.92, 23.12]}, "Novyra": {"r": [null, 59, 92, 89, null, null], "g": [null, 21361, 11525, 12995, null, null], "so": [null, null, null, null, null, null], "af": [null, 15954, 10230, 11685, null, null], "ml": [null, 5406, 1294, 1309, null, null], "ap": [null, 4.76, 6.89, 7.41, null, null]}, "Clomaná Beauty": {"r": [null, null, null, null, 59, 79], "g": [null, null, null, null, 22471, 12362], "so": [null, null, null, null, 2074, 6328], "af": [null, null, null, null, 11300, 3322], "ml": [null, null, null, null, 9096, 2711], "ap": [null, null, null, null, 47.81, 53.98]}, "yasly beauty": {"r": [60, 41, null, null, null, null], "g": [26647, 34306, null, null, null, null], "so": [null, null, null, null, null, null], "af": [23601, 14062, null, null, null, null], "ml": [3046, 20244, null, null, null, null], "ap": [13.19, 12.94, null, null, null, null]}, "Solar Buddies": {"r": [null, null, null, null, 60, 47], "g": [null, null, null, null, 21963, 28518], "so": [null, null, null, null, 8614, 9635], "af": [null, null, null, null, 13144, 18607], "ml": [null, null, null, null, 204, 275], "ap": [null, null, null, null, 10.98, 11.97]}, "Weleda UK": {"r": [null, null, null, null, null, 60], "g": [null, null, null, null, null, 18006], "so": [null, null, null, null, null, 3369], "af": [null, null, null, null, null, 12622], "ml": [null, null, null, null, null, 2015], "ap": [null, null, null, null, null, 13.6]}, "UnileverUK": {"r": [61, 55, 41, 70, null, null], "g": [24589, 24600, 33850, 18531, null, null], "so": [null, null, 14717, 10071, null, null], "af": [23673, 22280, 18362, 7534, null, null], "ml": [916, 2320, 771, 926, null, null], "ap": [15.99, 18.82, 16.5, 16.18, null, null]}, "AXISY UK": {"r": [null, 61, 24, 16, 6, 11], "g": [null, 20639, 66528, 124901, 231666, 169411], "so": [null, null, null, null, null, 935], "af": [null, 20386, 66501, 124751, 230946, 167983], "ml": [null, 253, 27, 149, 720, 492], "ap": [null, 12.31, 13.26, 12.14, 18.26, 20.19]}, "Nostalgiabyrahim.co.uk": {"r": [62, 37, 35, 49, 41, 29], "g": [24023, 37633, 41971, 35140, 43769, 54836], "so": [21104, 28731, 32252, 29633, 35621, 47565], "af": [890, 838, 700, 301, 1783, 1448], "ml": [2029, 8063, 9018, 5204, 6364, 5822], "ap": [34.42, 37.63, 24.85, 20.15, 18.53, 22.54]}, "Zara Iqbal": {"r": [null, null, null, 62, 73, 91], "g": [null, null, null, 22404, 14918, 10113], "so": [null, null, null, 13386, 23, 419], "af": [null, null, null, 5604, 13090, 9484], "ml": [null, null, null, 3413, 1803, 209], "ap": [null, null, null, 16.12, 25.07, 23.8]}, "PADORO SHOP": {"r": [63, 75, null, null, null, null], "g": [24010, 16009, null, null, null, null], "so": [null, null, null, null, null, null], "af": [16014, 12660, null, null, null, null], "ml": [7995, 3349, null, null, null, null], "ap": [16.55, 16.49, null, null, null, null]}, "Eden Beauty": {"r": [64, 83, 93, null, 75, null], "g": [23992, 14649, 10849, null, 14111, null], "so": [null, null, null, null, null, null], "af": [13567, 13429, 9501, null, 7187, null], "ml": [10424, 1219, 1347, null, 6924, null], "ap": [7.16, 4.48, 4.75, null, 5.47, null]}, "Natureehairoil": {"r": [null, 64, null, 72, 72, 55], "g": [null, 18537, null, 17762, 15006, 21413], "so": [null, 18537, null, 17449, 14163, 20823], "af": [null, null, null, null, null, 140], "ml": [null, null, null, 312, 842, 449], "ap": [null, 41.75, null, 37.47, 44.27, 43.52]}, "MustBDark": {"r": [null, null, null, 64, 70, null], "g": [null, null, null, 21578, 15134, null], "so": [null, null, null, 243, null, null], "af": [null, null, null, 1814, 479, null], "ml": [null, null, null, 19520, 14655, null], "ap": [null, null, null, 16.87, 23.72, null]}, "Exquisite Studio1": {"r": [65, 28, 49, 52, 80, null], "g": [23455, 44766, 30123, 29549, 12510, null], "so": [null, null, null, null, null, null], "af": [10226, 38661, 27679, 22585, 8194, null], "ml": [13229, 6105, 2444, 6964, 4316, null], "ap": [12.97, 13.76, 15.5, 15.68, 12.42, null]}, "Rosalique": {"r": [66, 82, 80, 83, 62, 84], "g": [23390, 14810, 12868, 14553, 21095, 11786], "so": [325, null, 368, null, null, null], "af": [15245, 14479, 12249, 14304, 20920, 11696], "ml": [7818, 330, 250, 249, 175, 90], "ap": [74.49, 45.02, 48.38, 45.06, 41.86, 43.33]}, "Makeup Revolution": {"r": [null, 66, 85, 34, 19, null], "g": [null, 18429, 12262, 61555, 111590, null], "so": [null, 5100, 6061, 17172, 28822, null], "af": [null, 3667, 3136, 6643, 10439, null], "ml": [null, 9661, 3064, 37739, 72328, null], "ap": [null, 11.06, 7.81, 23.62, 39.22, null]}, "Allien secret london": {"r": [67, 92, 79, 77, null, null], "g": [23083, 12674, 13018, 15919, null, null], "so": [null, null, null, null, null, null], "af": [22059, 9888, 12193, 15618, null, null], "ml": [1024, 2785, 824, 301, null, null], "ap": [17.34, 16.37, 12.8, 10.99, null, null]}, "iqrasaleemx": {"r": [null, null, null, null, 67, 90], "g": [null, null, null, null, 17706, 10557], "so": [null, null, null, null, 15012, 7124], "af": [null, null, null, null, null, null], "ml": [null, null, null, null, 2693, 3433], "ap": [null, null, null, null, 25.96, 38.96]}, "SXC Glo": {"r": [68, 70, null, 91, 95, 96], "g": [22307, 17506, null, 12615, 10065, 9710], "so": [17667, 12770, null, 4398, 6430, 8438], "af": [942, 1886, null, 4160, 677, 845], "ml": [3697, 2850, null, 4056, 2958, 425], "ap": [24.87, 20.19, null, 20.75, 18.96, 22.07]}, "Honor the future": {"r": [69, null, null, null, null, null], "g": [21629, null, null, null, null, null], "so": [null, null, null, null, null, null], "af": [9557, null, null, null, null, null], "ml": [12071, null, null, null, null, null], "ap": [2.54, null, null, null, null, null]}, "gzolimy cosmetics": {"r": [70, null, null, null, null, null], "g": [21166, null, null, null, null, null], "so": [107, null, null, null, null, null], "af": [17585, null, null, null, null, null], "ml": [3473, null, null, null, null, null], "ap": [7.87, null, null, null, null, null]}, "LAIKOU QUIYUN COSMETICS": {"r": [71, 86, null, 98, null, null], "g": [20862, 13634, null, 10364, null, null], "so": [null, null, null, 538, null, null], "af": [19597, 13431, null, 8508, null, null], "ml": [1264, 202, null, 1317, null, null], "ap": [15.16, 11.49, null, 11.2, null, null]}, "Dr Sam's Skincare": {"r": [null, 71, 66, 59, 61, 58], "g": [null, 17466, 20530, 24032, 21377, 19816], "so": [null, null, null, null, null, null], "af": [null, 6208, 9765, 18802, 18909, 17535], "ml": [null, 11258, 10764, 5230, 2467, 2281], "ap": [null, 39.52, 41.39, 39.01, 36.54, 37.04]}, "Medi Grade": {"r": [72, null, null, null, null, null], "g": [20828, null, null, null, null, null], "so": [292, null, null, null, null, null], "af": [16595, null, null, null, null, null], "ml": [3940, null, null, null, null, null], "ap": [69.66, null, null, null, null, null]}, "BPerfect Cosmetics": {"r": [73, 63, 28, 41, 47, 34], "g": [20442, 19192, 51023, 46120, 34507, 45561], "so": [8379, 9098, 30935, 15589, 15666, 18423], "af": [5976, 6117, 17596, 19349, 17079, 23540], "ml": [6086, 3976, 2491, 11181, 1761, 3597], "ap": [29.54, 27.26, 36.68, 27.72, 29.39, 36.6]}, "Peach beautful": {"r": [null, null, 73, null, null, null], "g": [null, null, 16780, null, null, null], "so": [null, null, null, null, null, null], "af": [null, null, 16700, null, null, null], "ml": [null, null, 79, null, null, null], "ap": [null, null, 14.02, null, null, null]}, "REHAB Your Hair": {"r": [null, null, null, null, null, 73], "g": [null, null, null, null, null, 13089], "so": [null, null, null, null, null, 236], "af": [null, null, null, null, null, 11770], "ml": [null, null, null, null, null, 1081], "ap": [null, null, null, null, null, 23.42]}, "Fat Cow Skincare": {"r": [74, null, 74, 100, 78, 94], "g": [19710, null, 16500, 9593, 13519, 9829], "so": [7280, null, 9021, 5672, 6379, 5382], "af": [9336, null, 5655, 1690, 3565, 1541], "ml": [3093, null, 1824, 2230, 3574, 2906], "ap": [20.11, null, 20.76, 21.37, 26.83, 32.88]}, "Allure Eco": {"r": [null, null, null, null, 74, 98], "g": [null, null, null, null, 14694, 9676], "so": [null, null, null, null, null, null], "af": [null, null, null, null, 13986, 9626], "ml": [null, null, null, null, 707, 49], "ap": [null, null, null, null, 12.31, 13.18]}, "Leoyol": {"r": [75, 67, 95, null, null, null], "g": [19548, 18427, 10470, null, null, null], "so": [null, null, null, null, null, null], "af": [19544, 18374, 10403, null, null, null], "ml": [4, 53, 67, null, null, null], "ap": [4.37, 4.74, 4.31, null, null, null]}, "Xioimy": {"r": [76, 24, 18, 30, 31, 39], "g": [19510, 51867, 105337, 74869, 60086, 39939], "so": [null, null, null, null, null, null], "af": [7123, 37888, 90379, 67121, 39218, 26504], "ml": [12386, 13979, 14957, 7748, 20867, 13435], "ap": [5.47, 6.6, 8.45, 7.72, 6.06, 5.9]}, "Q7Paris Cosmetics and Beauty": {"r": [null, null, 76, 67, 49, 33], "g": [null, null, 13748, 20442, 31432, 46956], "so": [null, null, null, null, null, null], "af": [null, null, 10264, 15271, 25673, 42837], "ml": [null, null, 3484, 5170, 5758, 4119], "ap": [null, null, 35.53, 32.76, 31.56, 32.41]}, "FWBEAUTY": {"r": [null, null, null, 76, 81, null], "g": [null, null, null, 16287, 12479, null], "so": [null, null, null, 4215, 7238, null], "af": [null, null, null, 2662, 372, null], "ml": [null, null, null, 9408, 4867, null], "ap": [null, null, null, 37.44, 33.28, null]}, "ADayDay": {"r": [77, null, null, null, null, null], "g": [19487, null, null, null, null, null], "so": [null, null, null, null, null, null], "af": [10085, null, null, null, null, null], "ml": [9402, null, null, null, null, null], "ap": [6.96, null, null, null, null, null]}, "SKIN FOOD COSMETIC UK": {"r": [null, null, null, null, null, 77], "g": [null, null, null, null, null, 12774], "so": [null, null, null, null, null, 4586], "af": [null, null, null, null, null, 8154], "ml": [null, null, null, null, null, 33], "ap": [null, null, null, null, null, 9.41]}, "i beautiful": {"r": [78, null, null, null, null, null], "g": [18946, null, null, null, null, null], "so": [null, null, null, null, null, null], "af": [11925, null, null, null, null, null], "ml": [7021, null, null, null, null, null], "ap": [6.85, null, null, null, null, null]}, "PurePatch": {"r": [79, null, null, null, null, null], "g": [18793, null, null, null, null, null], "so": [39, null, null, null, null, null], "af": [14130, null, null, null, null, null], "ml": [4623, null, null, null, null, null], "ap": [34.23, null, null, null, null, null]}, "ANGEL SILK GLOBAL": {"r": [80, 48, 39, 97, null, null], "g": [18675, 28814, 37704, 11026, null, null], "so": [null, null, null, null, null, null], "af": [6650, 19752, 9000, 47, null, null], "ml": [12024, 9061, 28703, 10979, null, null], "ap": [10.9, 7.61, 9.1, 6.96, null, null]}, "Ervaia": {"r": [null, null, null, 80, null, null], "g": [null, null, null, 15099, null, null], "so": [null, null, null, null, null, null], "af": [null, null, null, 2299, null, null], "ml": [null, null, null, 12799, null, null], "ap": [null, null, null, 31.72, null, null]}, "Calm Haven Beauty": {"r": [81, 39, 33, 37, 33, 32], "g": [18631, 35920, 43347, 53971, 57019, 48758], "so": [null, null, null, null, null, null], "af": [6435, 17582, 24282, 32468, 37892, 33417], "ml": [12196, 18338, 19064, 21502, 19126, 15341], "ap": [16.92, 14.23, 13.02, 12.77, 13.65, 15.87]}, "The Serenity Lab": {"r": [82, 74, 96, null, null, null], "g": [18579, 16434, 9972, null, null, null], "so": [17243, 15576, 8856, null, null, null], "af": [157, null, 298, null, null, null], "ml": [1178, 857, 817, null, null, null], "ap": [19.19, 14.99, 12.9, null, null, null]}, "Holy Bull Shop": {"r": [null, null, 82, null, 90, 66], "g": [null, null, 12510, null, 10765, 16328], "so": [null, null, 711, null, null, 3974], "af": [null, null, 11648, null, 9674, 11466], "ml": [null, null, 150, null, 1090, 887], "ap": [null, null, 16.97, null, 20.58, 19.01]}, "2Bmagic--UK": {"r": [null, null, null, null, null, 82], "g": [null, null, null, null, null, 11882], "so": [null, null, null, null, null, 5384], "af": [null, null, null, null, null, 6422], "ml": [null, null, null, null, null, 75], "ap": [null, null, null, null, null, 19.2]}, "RealBeautyLondon": {"r": [83, 77, 84, 84, 76, 71], "g": [18447, 15829, 12300, 14234, 13938, 13716], "so": [10727, 12850, 10567, 11175, 11623, 8003], "af": [821, 475, 422, 949, 516, 751], "ml": [6898, 2503, 1310, 2109, 1798, 4961], "ap": [37.42, 37.69, 44.73, 42.49, 41.24, 59.64]}, "Luminaskn": {"r": [null, null, null, null, 83, 74], "g": [null, null, null, null, 11859, 13023], "so": [null, null, null, null, 1638, 2026], "af": [null, null, null, null, 6006, 8592], "ml": [null, null, null, null, 4215, 2404], "ap": [null, null, null, null, 22.85, 23.34]}, "7th Heaven UK": {"r": [84, null, null, null, null, null], "g": [17577, null, null, null, null, null], "so": [15027, null, null, null, null, null], "af": [887, null, null, null, null, null], "ml": [1662, null, null, null, null, null], "ap": [6.34, null, null, null, null, null]}, "Shauons": {"r": [null, 84, null, null, null, null], "g": [null, 13847, null, null, null, null], "so": [null, null, null, null, null, null], "af": [null, 1631, null, null, null, null], "ml": [null, 12215, null, null, null, null], "ap": [null, 14.19, null, null, null, null]}, "QVC UK": {"r": [85, 76, 48, 85, 64, 40], "g": [17358, 15973, 30379, 14217, 19307, 38305], "so": [4235, 4279, 18165, 3562, 1497, 6883], "af": [10491, 6824, 918, 7749, 5980, 18366], "ml": [2632, 4870, 11295, 2905, 11829, 13055], "ap": [92.83, 97.4, 120.55, 66.75, 59.59, 95.53]}, "mixsoon.uk": {"r": [null, 85, 27, 28, 5, 8], "g": [null, 13762, 55148, 76976, 348484, 205184], "so": [null, null, null, null, null, 13093], "af": [null, 12085, 53428, 72584, 330070, 185653], "ml": [null, 1676, 1720, 4391, 18413, 6437], "ap": [null, 24.4, 31.32, 25.84, 23.12, 26.97]}, "SupremeTan": {"r": [86, 45, 81, null, 84, 56], "g": [17161, 30349, 12846, null, 11698, 20523], "so": [2597, 3902, 1602, null, 685, 1445], "af": [13692, 26379, 11214, null, 10997, 19034], "ml": [871, 67, 29, null, 15, 43], "ap": [12.81, 11.69, 11.45, null, 10.54, 14.87]}, "lunoon beauty care": {"r": [87, 72, 78, 92, null, null], "g": [16712, 16948, 13189, 12259, null, null], "so": [null, null, null, null, null, null], "af": [14872, 16203, 12630, 10733, null, null], "ml": [1839, 745, 558, 1525, null, null], "ap": [4.23, 3.85, 3.9, 4.3, null, null]}, "Makari GB": {"r": [null, null, 87, 88, 91, 76], "g": [null, null, 11943, 13208, 10535, 12955], "so": [null, null, 5006, 4141, 737, null], "af": [null, null, null, 45, 51, 5442], "ml": [null, null, 6936, 9020, 9747, 7513], "ap": [null, null, 43.75, 45.24, 47.25, 43.77]}, "YF Cosmetics": {"r": [null, null, null, null, 87, null], "g": [null, null, null, null, 11228, null], "so": [null, null, null, null, null, null], "af": [null, null, null, null, 6424, null], "ml": [null, null, null, null, 4804, null], "ap": [null, null, null, null, 5.29, null]}, "Sculpted by Aimee": {"r": [88, null, 56, 50, 52, 57], "g": [16549, null, 27229, 34699, 27844, 20351], "so": [null, null, null, 112, 143, 486], "af": [15517, null, 25039, 33656, 26665, 19503], "ml": [1032, null, 2189, 930, 1035, 361], "ap": [28.83, null, 30.98, 30.2, 29.59, 28.19]}, "Mowje Oedd": {"r": [null, 88, null, null, null, null], "g": [null, 13426, null, null, null, null], "so": [null, null, null, null, null, null], "af": [null, 6227, null, null, null, null], "ml": [null, 7199, null, null, null, null], "ap": [null, 12.11, null, null, null, null]}, "Dr.Reju-All UK": {"r": [null, null, null, null, null, 88], "g": [null, null, null, null, null, 11058], "so": [null, null, null, null, null, null], "af": [null, null, null, null, null, 10087], "ml": [null, null, null, null, null, 970], "ap": [null, null, null, null, null, 35.44]}, "Hanri Cosmetics": {"r": [89, null, null, null, null, null], "g": [16525, null, null, null, null, null], "so": [null, null, null, null, null, null], "af": [15174, null, null, null, null, null], "ml": [1351, null, null, null, null, null], "ap": [9.67, null, null, null, null, null]}, "Linwen TECH": {"r": [null, 89, 83, 82, 63, 87], "g": [null, 12997, 12446, 14581, 20294, 11202], "so": [null, null, null, null, null, null], "af": [null, 6927, 10797, 12623, 16185, 9867], "ml": [null, 6070, 1649, 1957, 4108, 1335], "ap": [null, 6.82, 6.09, 7.92, 7.86, 8.29]}, "Mercilen cosmetics": {"r": [null, null, null, null, 89, null], "g": [null, null, null, null, 10972, null], "so": [null, null, null, null, 98, null], "af": [null, null, null, null, 5792, null], "ml": [null, null, null, null, 5081, null], "ap": [null, null, null, null, 5.84, null]}, "Laboratoire SVR UK": {"r": [90, 73, 89, 81, 85, null], "g": [16131, 16622, 11662, 14821, 11666, null], "so": [545, 384, 199, 401, 167, null], "af": [14212, 15027, 10826, 12994, 10594, null], "ml": [1374, 1211, 636, 1424, 904, null], "ap": [13.38, 11.25, 10.5, 11.37, 12.35, null]}, "Pixi Beauty UK": {"r": [null, 90, 91, 57, 94, 78], "g": [null, 12878, 11542, 25454, 10137, 12711], "so": [null, 560, 929, 836, 414, 44], "af": [null, 9953, 9058, 18565, 6591, 11652], "ml": [null, 2364, 1554, 6052, 3130, 1014], "ap": [null, 23.98, 19.8, 7.91, 12.5, 20.84]}, "Exotic Cosmetics Uk": {"r": [91, 91, 62, 43, 37, 35], "g": [15697, 12736, 25195, 37955, 49271, 44685], "so": [12170, 11133, 20408, 23912, 23744, 24197], "af": [2010, 1167, 1318, 3309, 3375, 567], "ml": [1516, 435, 3469, 10733, 22151, 19920], "ap": [37.46, 44.38, 41.51, 38.97, 39.54, 44.29]}, "LitBear Beauty": {"r": [92, null, null, null, null, null], "g": [15526, null, null, null, null, null], "so": [null, null, null, null, null, null], "af": [14817, null, null, null, null, null], "ml": [708, null, null, null, null, null], "ap": [5.23, null, null, null, null, null]}, "DoryukiShop": {"r": [93, null, null, null, null, null], "g": [15350, null, null, null, null, null], "so": [null, null, null, null, null, null], "af": [2670, null, null, null, null, null], "ml": [12680, null, null, null, null, null], "ap": [16.23, null, null, null, null, null]}, "organicsbyhannah": {"r": [null, null, null, null, null, 93], "g": [null, null, null, null, null, 10091], "so": [null, null, null, null, null, 9086], "af": [null, null, null, null, null, 667], "ml": [null, null, null, null, null, 337], "ap": [null, null, null, null, null, 15.92]}, "Kemsebeauty": {"r": [94, 65, 67, 56, 54, 43], "g": [15280, 18510, 19024, 27061, 25750, 33035], "so": [10882, 11713, 8368, 14994, 17259, 28286], "af": [23, 48, 184, 330, 92, 991], "ml": [4374, 6749, 10471, 11737, 8398, 3757], "ap": [23.95, 24.68, 26.17, 24.31, 24.29, 24.63]}, "smuutiskinuk": {"r": [null, null, 94, null, null, 100], "g": [null, null, 10758, null, null, 9315], "so": [null, null, 8931, null, null, 8323], "af": [null, null, 1424, null, null, 431], "ml": [null, null, 402, null, null, 560], "ap": [null, null, 24.34, null, null, 16.06]}, "Cult Beauty": {"r": [null, null, null, 94, 71, 92], "g": [null, null, null, 12057, 15084, 10113], "so": [null, null, null, 245, 369, 649], "af": [null, null, null, 4465, 5625, 5132], "ml": [null, null, null, 7346, 9089, 4330], "ap": [null, null, null, 29.85, 28.62, 25.47]}, "Rainbow bow shop": {"r": [95, null, null, null, null, null], "g": [14890, null, null, null, null, null], "so": [null, null, null, null, null, null], "af": [6842, null, null, null, null, null], "ml": [8047, null, null, null, null, null], "ap": [12.94, null, null, null, null, null]}, "Mizi beauty": {"r": [null, 95, 70, null, null, null], "g": [null, 11537, 17454, null, null, null], "so": [null, null, 85, null, null, null], "af": [null, 10826, 15879, null, null, null], "ml": [null, 710, 1489, null, null, null], "ap": [null, 4.47, 4.69, null, null, null]}, "rose origins shop": {"r": [null, null, null, 95, null, null], "g": [null, null, null, 11996, null, null], "so": [null, null, null, null, null, null], "af": [null, null, null, 3973, null, null], "ml": [null, null, null, 8022, null, null], "ap": [null, null, null, 12.15, null, null]}, "TIKZORA": {"r": [null, null, null, null, null, 95], "g": [null, null, null, null, null, 9780], "so": [null, null, null, null, null, 177], "af": [null, null, null, null, null, 4924], "ml": [null, null, null, null, null, 4678], "ap": [null, null, null, null, null, 13.2]}, "Sunnie Side Skin.": {"r": [96, 99, 97, null, null, null], "g": [14801, 11240, 9865, null, null, null], "so": [7316, 5780, 4707, null, null, null], "af": [6249, 5022, 4283, null, null, null], "ml": [1235, 437, 875, null, null, null], "ap": [19.87, 14.89, 15.56, null, null, null]}, "YWHD": {"r": [null, 96, 88, 99, null, null], "g": [null, 11534, 11934, 10047, null, null], "so": [null, null, null, null, null, null], "af": [null, 8450, 11916, 10027, null, null], "ml": [null, 3083, 17, 19, null, null], "ap": [null, 4.5, 4.29, 4.43, null, null]}, "Zuri Botanicals": {"r": [null, null, null, null, 96, 85], "g": [null, null, null, null, 9911, 11423], "so": [null, null, null, null, 9803, 11263], "af": [null, null, null, null, null, null], "ml": [null, null, null, null, 107, 159], "ap": [null, null, null, null, 25.61, 21.43]}, "Yijiusi Trading": {"r": [97, 56, 65, 93, null, null], "g": [14469, 22151, 21576, 12071, null, null], "so": [null, null, null, null, null, null], "af": [5447, 20219, 15956, 7042, null, null], "ml": [9021, 1931, 5620, 5028, null, null], "ap": [4.9, 5.42, 5.81, 7.05, null, null]}, "Napiers The Herbalists": {"r": [null, 97, null, null, 88, 62], "g": [null, 11402, null, null, 11089, 17247], "so": [null, 8229, null, null, 8065, 10691], "af": [null, 1116, null, null, 1850, 5543], "ml": [null, 2056, null, null, 1173, 1011], "ap": [null, 23.9, null, null, 23.15, 21.11]}, "MEGATANSHOP": {"r": [null, null, null, null, null, 97], "g": [null, null, null, null, null, 9682], "so": [null, null, null, null, null, 6812], "af": [null, null, null, null, null, 1736], "ml": [null, null, null, null, null, 1133], "ap": [null, null, null, null, null, 16.69]}, "Redi Makeup": {"r": [98, null, null, null, null, null], "g": [14392, null, null, null, null, null], "so": [null, null, null, null, null, null], "af": [427, null, null, null, null, null], "ml": [13964, null, null, null, null, null], "ap": [10.7, null, null, null, null, null]}, "Tktx supply uk numbing cream": {"r": [null, 98, 90, null, null, null], "g": [null, 11286, 11583, null, null, null], "so": [null, null, null, null, null, null], "af": [null, 10308, 8644, null, null, null], "ml": [null, 978, 2938, null, null, null], "ap": [null, 14.93, 16.04, null, null, null]}, "SUMIFANG NEW": {"r": [null, null, null, null, 98, null], "g": [null, null, null, null, 9369, null], "so": [null, null, null, null, null, null], "af": [null, null, null, null, 633, null], "ml": [null, null, null, null, 8735, null], "ap": [null, null, null, null, 3.74, null]}, "DFGDFCV": {"r": [99, null, null, null, null, null], "g": [14372, null, null, null, null, null], "so": [null, null, null, null, null, null], "af": [1120, null, null, null, null, null], "ml": [13252, null, null, null, null, null], "ap": [11.54, null, null, null, null, null]}, "nuorganic-uk": {"r": [null, null, null, null, null, 99], "g": [null, null, null, null, null, 9404], "so": [null, null, null, null, null, null], "af": [null, null, null, null, null, 9404], "ml": [null, null, null, null, null, null], "ap": [null, null, null, null, null, 28.41]}, "Trendy Makeup Planet": {"r": [100, null, null, null, null, null], "g": [14170, null, null, null, null, null], "so": [105, null, null, null, null, null], "af": [13678, null, null, null, null, null], "ml": [386, null, null, null, null, null], "ap": [4.96, null, null, null, null, null]}, "Jordana Ticia": {"r": [null, 100, null, null, null, null], "g": [null, 11183, null, null, null, null], "so": [null, 7640, null, null, null, null], "af": [null, 2858, null, null, null, null], "ml": [null, 683, null, null, null, null], "ap": [null, 23.69, null, null, null, null]}, "Mummykemi": {"r": [null, null, null, null, 100, 80], "g": [null, null, null, null, 8973, 12346], "so": [null, null, null, null, null, null], "af": [null, null, null, null, 15, 1739], "ml": [null, null, null, null, 8957, 10607], "ap": [null, null, null, null, 12.16, 12.73]}};
+const TOP_N  = 100;
+
+const PAL = (() => {
+  const base = [
+    '#4e9af1','#f4845f','#5cb85c','#c084fc','#fbbf24','#34d399','#fb7185','#60a5fa',
+    '#a78bfa','#f97316','#10b981','#e879f9','#facc15','#38bdf8','#f43f5e','#84cc16',
+    '#818cf8','#fb923c','#2dd4bf','#c026d3','#eab308','#06b6d4','#ec4899','#22c55e',
+    '#8b5cf6','#f59e0b','#0ea5e9','#ef4444','#14b8a6','#d946ef','#a3e635','#7c3aed',
+    '#f87171','#4ade80','#fb923c','#e11d48','#0891b2','#65a30d','#9333ea','#b45309',
+    '#0284c7','#dc2626','#16a34a','#7c3aed','#d97706','#0369a1','#b91c1c','#15803d',
+    '#6d28d9','#92400e','#075985','#991b1b','#166534','#5b21b6','#78350f','#0c4a6e',
+    '#7f1d1d','#14532d','#4c1d95','#451a03',
+  ];
+  const out = [];
+  for (let i = 0; i < Math.max(BRANDS.length, 60); i++) out.push(base[i % base.length]);
+  return out;
+})();
+
+const D = window.matchMedia('(prefers-color-scheme: dark)').matches;
+const C = {
+  text  : getComputedStyle(document.documentElement).getPropertyValue('--text').trim(),
+  texts : getComputedStyle(document.documentElement).getPropertyValue('--texts').trim(),
+  grid  : D ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)',
+  up    : '#1D9E75', dn: '#D85A30',
+};
+
+const mrow = document.getElementById('mrow');
+ML.forEach((lbl, i) => {
+  const v    = TOTALS[i];
+  const prev = i > 0 ? TOTALS[i - 1] : null;
+  const pct  = prev ? ((v - prev) / prev * 100).toFixed(1) : null;
+  const chg  = pct === null
+    ? '<div class="mc-chg" style="color:var(--textt)">첫 번째 달</div>'
+    : +pct >= 0
+      ? `<div class="mc-chg up">&#9650; ${pct}% MoM</div>`
+      : `<div class="mc-chg dn">&#9660; ${Math.abs(pct)}% MoM</div>`;
+  const card = document.createElement('div');
+  card.className = 'mc' + (i === ML.length - 1 ? ' active' : '');
+  card.innerHTML = `<div class="mc-lbl">${lbl}</div>
+    <div class="mc-val">$${(v / 1e6).toFixed(2)}M</div>${chg}`;
+  card.onclick = () => {
+    stopPlay(); frame = i; prog = 0; draw();
+    document.querySelectorAll('.mc').forEach((c, j) => c.classList.toggle('active', j === i));
+  };
+  mrow.appendChild(card);
+});
+
+new Chart(document.getElementById('gmvC'), {
+  type: 'bar',
+  data: {
+    labels: ML,
+    datasets: [{
+      data: TOTALS,
+      backgroundColor: PAL.slice(0, ML.length).map(c => c + 'cc'),
+      borderColor:     PAL.slice(0, ML.length),
+      borderWidth: 1.5, borderRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: {
+        label: ctx => `  Top 100 Total: $${(ctx.parsed.y / 1e6).toFixed(2)}M`
+      } }
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { color: C.texts, font: { size: 11 } } },
+      y: { grid: { color: C.grid },   ticks: { color: C.texts, font: { size: 10 },
+            callback: v => `$${(v / 1e6).toFixed(0)}M` } }
+    }
+  }
+});
+
+const bc = document.getElementById('bc');
+const tt = document.getElementById('tt');
+let bctx, W, H;
+const NM    = ML.length;
+const MAX_R = TOP_N;
+const PAD   = { l: 52, r: 190, t: 38, b: 22 };
+
+let frame = NM - 1, prog = 0, playing = false, animMs = 750;
+let rafId = null, lastTs = null;
+let muted = new Set(), hl = null;
+
+function updateMutedCount() {
+  document.getElementById('brandCount').textContent = BRANDS.length;
+  document.getElementById('mutedCount').textContent = muted.size;
+}
+function initBC() {
+  const dpr  = window.devicePixelRatio || 1;
+  const rect = bc.parentElement.getBoundingClientRect();
+  W = rect.width;
+  H = Math.max(900, MAX_R * 11 + PAD.t + PAD.b);
+  bc.style.height = H + 'px';
+  bc.width  = W * dpr; bc.height = H * dpr;
+  bctx = bc.getContext('2d'); bctx.scale(dpr, dpr);
+}
+function rankY(r) { return PAD.t + ((Math.min(r, MAX_R) - 1) / (MAX_R - 1)) * (H - PAD.t - PAD.b); }
+function mthX(i)  { return PAD.l + (i / Math.max(NM - 1, 1)) * (W - PAD.l - PAD.r); }
+function getRank(bi, mi, p) {
+  const b = BRANDS[bi], r1 = RAW[b].r[mi];
+  if (mi >= NM - 1 || p === 0 || r1 === null) return r1;
+  const r2 = RAW[b].r[Math.min(mi + 1, NM - 1)];
+  return r2 === null ? r1 : r1 + (r2 - r1) * p;
+}
+
+function draw() {
+  if (!bctx) return;
+  bctx.clearRect(0, 0, W, H);
+
+  [1,5,10,20,30,40,50,60,70,80,90,100].filter(v => v <= TOP_N).forEach(r => {
+    const y = rankY(r);
+    bctx.strokeStyle = C.grid; bctx.lineWidth = 0.5;
+    bctx.beginPath(); bctx.moveTo(PAD.l - 4, y); bctx.lineTo(W - PAD.r + 4, y); bctx.stroke();
+    bctx.fillStyle = C.texts; bctx.font = '10px -apple-system,sans-serif'; bctx.textAlign = 'right';
+    bctx.fillText('#' + r, PAD.l - 8, y + 3.5);
+  });
+
+  for (let mi = 0; mi < NM; mi++) {
+    const x = mthX(mi);
+    bctx.strokeStyle = C.grid; bctx.lineWidth = 0.5;
+    bctx.beginPath(); bctx.moveTo(x, PAD.t - 14); bctx.lineTo(x, H - PAD.b + 8); bctx.stroke();
+    bctx.fillStyle = mi === frame ? C.text : C.texts;
+    bctx.font = (mi === frame ? '600 12px' : '11px') + ' -apple-system,sans-serif';
+    bctx.textAlign = 'center'; bctx.fillText(ML[mi], x, PAD.t - 16);
+  }
+
+  BRANDS.forEach((b, bi) => {
+    if (muted.has(b)) return;
+    const col = PAL[bi % PAL.length], isHL = hl === b;
+    const alpha = hl ? (isHL ? 1 : 0.07) : 0.72;
+    const lw    = isHL ? 2.5 : (hl ? 0.5 : 1.4);
+    bctx.globalAlpha = alpha;
+    bctx.strokeStyle = col; bctx.lineWidth = lw; bctx.lineCap = 'round'; bctx.lineJoin = 'round';
+    bctx.beginPath(); let started = false;
+    for (let mi = 0; mi <= frame; mi++) {
+      const r = mi < frame ? RAW[b].r[mi] : getRank(bi, frame, prog);
+      if (r === null) { started = false; continue; }
+      const x = mthX(mi), y = rankY(r);
+      if (!started) { bctx.moveTo(x, y); started = true; } else bctx.lineTo(x, y);
+    }
+    bctx.stroke();
+    for (let mi = 0; mi <= frame; mi++) {
+      const r = mi < frame ? RAW[b].r[mi] : getRank(bi, frame, prog);
+      if (r === null) continue;
+      const x = mthX(mi), y = rankY(r);
+      const dr = isHL ? 5 : (mi === frame ? 3.5 : 2.5);
+      bctx.beginPath(); bctx.arc(x, y, dr, 0, Math.PI * 2);
+      bctx.fillStyle = col; bctx.fill();
+      if (isHL || mi === frame) { bctx.strokeStyle = D ? '#1e1e1c' : '#fff'; bctx.lineWidth = 1.2; bctx.stroke(); }
+    }
+    bctx.globalAlpha = 1;
+  });
+
+  const pts = BRANDS.map((b, bi) => {
+    if (muted.has(b)) return null;
+    const r = getRank(bi, frame, prog);
+    return r === null ? null : { b, bi, r, y: rankY(r) };
+  }).filter(Boolean).sort((a, b_) => a.r - b_.r);
+  let prev2 = -9999;
+  pts.forEach(p => { let ly = p.y; if (ly - prev2 < 11) ly = prev2 + 11; prev2 = ly; p.ly = ly; });
+  pts.forEach(p => {
+    const col = PAL[p.bi % PAL.length], isHL = hl === p.b;
+    bctx.globalAlpha = hl ? (isHL ? 1 : 0.10) : 0.85;
+    bctx.font = (isHL ? '600 11px' : '10px') + ' -apple-system,sans-serif';
+    bctx.fillStyle = col; bctx.textAlign = 'left';
+    const nm = p.b.length > 20 ? p.b.slice(0, 19) + '...' : p.b;
+    bctx.fillText(`#${Math.round(p.r)} ${nm}`, mthX(NM - 1) + 13, p.ly + 3.5);
+    bctx.strokeStyle = col; bctx.lineWidth = 0.4; bctx.setLineDash([2, 2]);
+    bctx.beginPath(); bctx.moveTo(mthX(frame) + 5, rankY(p.r)); bctx.lineTo(mthX(NM - 1) + 11, p.ly + 1);
+    bctx.stroke(); bctx.setLineDash([]); bctx.globalAlpha = 1;
+  });
+}
+
+function animStep(ts) {
+  if (!lastTs) lastTs = ts;
+  const dt = ts - lastTs; lastTs = ts;
+  prog += dt / animMs;
+  if (prog >= 1) {
+    prog = 0; frame = Math.min(frame + 1, NM - 1);
+    if (frame >= NM - 1) { stopPlay(); draw(); return; }
+  }
+  draw(); if (playing) rafId = requestAnimationFrame(animStep);
+}
+function togglePlay() { playing ? stopPlay() : startPlay(); }
+function startPlay() {
+  if (frame >= NM - 1) { frame = 0; prog = 0; }
+  playing = true;
+  document.getElementById('playBtn').textContent = '&#9646;&#9646; Pause';
+  document.getElementById('playBtn').classList.add('playing');
+  lastTs = null; rafId = requestAnimationFrame(animStep);
+}
+function stopPlay() {
+  playing = false; if (rafId) cancelAnimationFrame(rafId);
+  document.getElementById('playBtn').textContent = '&#9654; Play';
+  document.getElementById('playBtn').classList.remove('playing');
+}
+function doReset() { stopPlay(); frame = 0; prog = 0; draw(); }
+
+bc.addEventListener('click', e => {
+  const rect = bc.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  for (let i = 0; i < NM; i++) {
+    if (Math.abs(mx - mthX(i)) < 22 && my < PAD.t) {
+      stopPlay(); frame = i; prog = 0; draw();
+      document.querySelectorAll('.mc').forEach((c, j) => c.classList.toggle('active', j === i));
+      return;
+    }
+  }
+  let md = 999, mb = null;
+  BRANDS.forEach((b, bi) => {
+    if (muted.has(b)) return;
+    for (let mi = 0; mi <= frame; mi++) {
+      const r = mi < frame ? RAW[b].r[mi] : getRank(bi, frame, prog);
+      if (r === null) continue;
+      const d = Math.hypot(mx - mthX(mi), my - rankY(r));
+      if (d < md) { md = d; mb = b; }
+    }
+  });
+  if (md < 18) {
+    hl = hl === mb ? null : mb;
+    document.querySelectorAll('.leg-item').forEach(el => el.classList.toggle('hl', el.dataset.brand === hl));
+    draw();
+  } else {
+    hl = null;
+    document.querySelectorAll('.leg-item').forEach(el => el.classList.remove('hl'));
+    draw();
+  }
+});
+
+function fmtM(v) { return v ? `$${(v/1e6).toFixed(2)}M` : '-'; }
+function fmtPct(part, total) {
+  if (!part || !total) return '0%';
+  return (part / total * 100).toFixed(1) + '%';
+}
+
+bc.addEventListener('mousemove', e => {
+  const rect = bc.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  let md = 999, near = null;
+  BRANDS.forEach((b, bi) => {
+    if (muted.has(b)) return;
+    for (let mi = 0; mi <= frame; mi++) {
+      const r = mi < frame ? RAW[b].r[mi] : getRank(bi, frame, prog);
+      if (r === null) continue;
+      const d = Math.hypot(mx - mthX(mi), my - rankY(r));
+      if (d < md) {
+        md = d;
+        near = {
+          b, mi, bi,
+          rank : RAW[b].r[Math.min(mi, NM-1)],
+          gmv  : RAW[b].g[mi],
+          so   : RAW[b].so[mi],
+          af   : RAW[b].af[mi],
+          ml   : RAW[b].ml[mi],
+          ap   : RAW[b].ap[mi],
+        };
+      }
+    }
+  });
+
+  if (near && md < 22) {
+    const col   = PAL[near.bi % PAL.length];
+    const prevR = near.mi > 0 ? RAW[near.b].r[near.mi - 1] : null;
+    const d     = near.rank && prevR ? prevR - near.rank : null;
+    const dStr  = d === null ? '-' :
+      d > 0 ? `<span style="color:${C.up}">&#9650;${d} up</span>` :
+      d < 0 ? `<span style="color:${C.dn}">&#9660;${Math.abs(d)} dn</span>` :
+              `<span style="color:var(--textt)">no change</span>`;
+
+    const total = near.gmv || 0;
+    const so    = near.so  || 0;
+    const af    = near.af  || 0;
+    const ml    = near.ml  || 0;
+    const soPct = total ? so / total * 100 : 0;
+    const afPct = total ? af / total * 100 : 0;
+    const mlPct = total ? ml / total * 100 : 0;
+
+    const soCol = '#4e9af1';
+    const afCol = '#f4845f';
+    const mlCol = '#5cb85c';
+
+    const hasChannel = total > 0 && (so > 0 || af > 0 || ml > 0);
+
+    tt.innerHTML = `
+      <div class="tt-name" style="color:${col}">${near.b}</div>
+      <div class="tt-row"><span>Month</span><span class="tt-v">${ML[near.mi]}</span></div>
+      <div class="tt-row"><span>Rank</span><span class="tt-v">#${near.rank ?? '-'}</span></div>
+      <div class="tt-row"><span>MoM Change</span><span class="tt-v">${dStr}</span></div>
+      <div class="tt-row"><span>Revenue</span><span class="tt-v">${fmtM(near.gmv)}</span></div>
+      <div class="tt-row"><span>Avg Price</span><span class="tt-v">${near.ap ? `$${near.ap}` : '-'}</span></div>
+      ${hasChannel ? `
+      <hr class="tt-divider">
+      <div style="font-size:10px;color:var(--textt);margin-bottom:5px">Channel Mix</div>
+      <div class="tt-row">
+        <span style="color:${soCol}">&#9632; Self-Operated</span>
+        <span class="tt-v">${fmtM(near.so)} <span style="color:var(--textt);font-weight:400">(${fmtPct(so,total)})</span></span>
+      </div>
+      <div class="tt-row">
+        <span style="color:${afCol}">&#9632; Affiliate</span>
+        <span class="tt-v">${fmtM(near.af)} <span style="color:var(--textt);font-weight:400">(${fmtPct(af,total)})</span></span>
+      </div>
+      <div class="tt-row">
+        <span style="color:${mlCol}">&#9632; Shopping Mall</span>
+        <span class="tt-v">${fmtM(near.ml)} <span style="color:var(--textt);font-weight:400">(${fmtPct(ml,total)})</span></span>
+      </div>
+      <div class="rev-bar-wrap">
+        <div class="rev-bar-track">
+          <div class="rev-bar-seg" style="width:${soPct}%;background:${soCol}88"></div>
+          <div class="rev-bar-seg" style="width:${afPct}%;background:${afCol}88"></div>
+          <div class="rev-bar-seg" style="width:${mlPct}%;background:${mlCol}88"></div>
+        </div>
+        <div class="rev-bar-label">
+          <span style="color:${soCol}">Self-Op ${soPct.toFixed(0)}%</span>
+          <span style="color:${afCol}">Aff ${afPct.toFixed(0)}%</span>
+          <span style="color:${mlCol}">Mall ${mlPct.toFixed(0)}%</span>
+        </div>
+      </div>` : ''}
+    `;
+    tt.style.opacity = '1';
+    let tx = mx + 14, ty = my - 10;
+    if (tx + 240 > W) tx = mx - 255;
+    if (ty + 220 > H) ty = H - 230;
+    tt.style.left = tx + 'px'; tt.style.top = ty + 'px';
+  } else { tt.style.opacity = '0'; }
+});
+bc.addEventListener('mouseleave', () => tt.style.opacity = '0');
+
+document.getElementById('searchBox').addEventListener('input', function() {
+  const q = this.value.trim().toLowerCase();
+  if (!q) { hl = null; document.querySelectorAll('.leg-item').forEach(el => el.classList.remove('hl')); draw(); return; }
+  const matched = BRANDS.find(b => b.toLowerCase().includes(q));
+  hl = matched || null;
+  document.querySelectorAll('.leg-item').forEach(el => el.classList.toggle('hl', el.dataset.brand === hl));
+  draw();
+});
+
+const legWrap = document.getElementById('leg');
+BRANDS.forEach((b, bi) => {
+  const el = document.createElement('div');
+  el.className = 'leg-item'; el.dataset.brand = b;
+  el.innerHTML = `<span class="leg-d" style="background:${PAL[bi % PAL.length]}"></span>${b.length > 17 ? b.slice(0,16)+'...' : b}`;
+  el.onclick = () => {
+    if (muted.has(b)) { muted.delete(b); el.classList.remove('off'); }
+    else              { muted.add(b);    el.classList.add('off'); if (hl === b) hl = null; }
+    updateMutedCount(); draw();
+  };
+  legWrap.appendChild(el);
+});
+
+initBC();
+frame = NM - 1; prog = 0;
+updateMutedCount();
+draw();
+window.addEventListener('resize', () => { initBC(); draw(); });
+</script>
+</body>
+</html>
